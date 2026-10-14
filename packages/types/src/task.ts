@@ -154,7 +154,7 @@ export interface CreateTaskInput {
   scheduledDate?: string;
 
   /** Estimated time to complete the task in minutes */
-  estimatedMins?: number;
+  estimatedMins?: number | null;
 
   /** Priority level (P0=Critical, P1=High, P2=Medium, P3=Low) */
   priority?: TaskPriority;

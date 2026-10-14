@@ -12,6 +12,8 @@ export interface UserPreferences {
   workEndHour?: number;
   homeTab?: "board" | "tasks" | "calendar";
   addTaskPosition?: "top" | "bottom";
+  /** Planned minutes for new tasks; unset means 60, null means none */
+  defaultTaskMins?: number | null;
 }
 
 export const users = pgTable('users', {

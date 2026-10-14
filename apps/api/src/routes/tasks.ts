@@ -23,7 +23,7 @@ import {
   notificationPreferences,
 } from "@open-sunsama/database";
 import { users, rolloverLogs } from "@open-sunsama/database/schema";
-import { NotFoundError, uuidSchema } from "@open-sunsama/utils";
+import { NotFoundError, defaultTaskMins, uuidSchema } from "@open-sunsama/utils";
 import { auth, requireScopes, type AuthVariables } from "../middleware/auth.js";
 import {
   createTaskSchema,
@@ -213,6 +213,17 @@ tasksRouter.post(
     const db = getDb();
     if (data.projectId) await assertProjectOwned(userId, data.projectId);
 
+    // No planned time given (null is an explicit "none"): use the user's default.
+    let estimatedMins = data.estimatedMins;
+    if (estimatedMins === undefined) {
+      const [user] = await db
+        .select({ preferences: users.preferences })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      estimatedMins = defaultTaskMins(user?.preferences);
+    }
+
     let position = data.position;
     if (position === undefined) {
       const scheduledDate = data.scheduledDate || null;
@@ -239,7 +250,7 @@ tasksRouter.post(
           notes: data.notes ?? null,
           scheduledDate: data.scheduledDate ?? null,
           dueDate: data.dueDate ?? null,
-          estimatedMins: data.estimatedMins ?? null,
+          estimatedMins: estimatedMins ?? null,
           priority: data.priority ?? "P2",
           position,
           projectId: data.projectId ?? null,

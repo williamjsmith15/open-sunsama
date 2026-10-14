@@ -14,6 +14,20 @@ export const DEFAULT_TIMEZONE = 'UTC' as const;
 /** Available options for estimated minutes on tasks */
 export const ESTIMATED_MINS_OPTIONS = [15, 30, 45, 60, 90, 120] as const;
 
+/** Planned time for a new task when the user hasn't chosen one in settings. */
+export const DEFAULT_TASK_MINS = 60;
+
+/**
+ * Planned time for a new task with none given: the user's setting, 60 minutes
+ * when it was never set, or null when they turned it off.
+ */
+export function defaultTaskMins(
+  preferences: { defaultTaskMins?: number | null } | null | undefined
+): number | null {
+  const value = preferences?.defaultTaskMins;
+  return value === undefined ? DEFAULT_TASK_MINS : value;
+}
+
 /** Standard date format (ISO 8601 date only) */
 export const DATE_FORMAT = 'yyyy-MM-dd' as const;
 

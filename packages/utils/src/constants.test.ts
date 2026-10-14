@@ -3,6 +3,8 @@ import {
   API_KEY_PREFIX,
   LEGACY_API_KEY_PREFIX,
   DEFAULT_TIMEZONE,
+  DEFAULT_TASK_MINS,
+  defaultTaskMins,
   ESTIMATED_MINS_OPTIONS,
   DATE_FORMAT,
   TIME_FORMAT,
@@ -58,5 +60,14 @@ describe('constants', () => {
 
   it('should have correct TIME_BLOCK_STATUSES', () => {
     expect(TIME_BLOCK_STATUSES).toEqual(['scheduled', 'in_progress', 'completed', 'skipped']);
+  });
+});
+
+describe('defaultTaskMins', () => {
+  it('is 60 until the user sets it, and null once turned off', () => {
+    expect(defaultTaskMins(null)).toBe(DEFAULT_TASK_MINS);
+    expect(defaultTaskMins({})).toBe(60);
+    expect(defaultTaskMins({ defaultTaskMins: 30 })).toBe(30);
+    expect(defaultTaskMins({ defaultTaskMins: null })).toBeNull();
   });
 });

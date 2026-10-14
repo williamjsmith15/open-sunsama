@@ -60,6 +60,12 @@ export interface UserPreferences {
    * across accounts, devices, and logins.
    */
   addTaskPosition?: "top" | "bottom";
+
+  /**
+   * Planned minutes given to a new task created without one. Unset means
+   * 60; null turns the default off.
+   */
+  defaultTaskMins?: number | null;
 }
 
 /**
