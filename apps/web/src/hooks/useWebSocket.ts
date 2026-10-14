@@ -180,6 +180,11 @@ function handleWebSocketEvent(
       }
       break;
 
+    case "data:restored":
+      // A backup replaced everything; refetch every query.
+      queryClient.invalidateQueries();
+      break;
+
     case "user:updated": {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       const userPayload = event.payload as UserEvent;
