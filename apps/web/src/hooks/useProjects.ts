@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateProjectInput,
@@ -8,6 +9,9 @@ import { getApiClient } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { projectKeys, taskKeys } from "@/lib/query-keys";
+import { resolveBlockColor } from "@/lib/block-color";
+
+export { DEFAULT_BLOCK_COLOR, resolveBlockColor } from "@/lib/block-color";
 
 export { projectKeys };
 
@@ -42,7 +46,16 @@ export function useProjects() {
 /** Look up projects by id; for chips and pickers. */
 export function useProjectMap() {
   const { data } = useProjects();
-  return new Map((data ?? []).map((p) => [p.id, p]));
+  return React.useMemo(() => new Map((data ?? []).map((p) => [p.id, p])), [data]);
+}
+
+/** `resolveBlockColor` bound to the user's projects. */
+export function useBlockColor() {
+  const projects = useProjectMap();
+  return React.useCallback(
+    (block: Parameters<typeof resolveBlockColor>[0]) => resolveBlockColor(block, projects),
+    [projects]
+  );
 }
 
 export function useCreateProject() {

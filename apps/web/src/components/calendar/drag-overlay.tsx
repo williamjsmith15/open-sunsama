@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useBlockColor } from "@/hooks/useProjects";
 import { format } from "date-fns";
 import { Clock, Calendar, CalendarDays } from "lucide-react";
 import type { Task, TimeBlock, CalendarEvent } from "@open-sunsama/types";
@@ -143,6 +144,7 @@ interface BlockDragPreviewProps {
 
 function BlockDragPreview({ block, dropPreview, dragType }: BlockDragPreviewProps) {
   const isResizing = dragType === "resize-top" || dragType === "resize-bottom";
+  const blockColor = useBlockColor()(block);
 
   return (
     <div
@@ -151,15 +153,15 @@ function BlockDragPreview({ block, dropPreview, dragType }: BlockDragPreviewProp
         "animate-in fade-in-0 zoom-in-95 duration-150"
       )}
       style={{
-        backgroundColor: block.color ?? "hsl(var(--card))",
-        borderColor: block.color ?? "hsl(var(--border))",
+        backgroundColor: blockColor ?? "hsl(var(--card))",
+        borderColor: blockColor ?? "hsl(var(--border))",
       }}
     >
       <div className="p-3">
         {/* Block title */}
         <p
           className="text-sm font-medium truncate"
-          style={{ color: block.color ? "white" : undefined }}
+          style={{ color: blockColor ? "white" : undefined }}
         >
           {block.title}
         </p>
@@ -167,7 +169,7 @@ function BlockDragPreview({ block, dropPreview, dragType }: BlockDragPreviewProp
         {/* Action indicator */}
         <p
           className="text-xs mt-1 opacity-80"
-          style={{ color: block.color ? "white" : "var(--muted-foreground)" }}
+          style={{ color: blockColor ? "white" : "var(--muted-foreground)" }}
         >
           {isResizing ? "Resizing..." : "Moving..."}
         </p>
@@ -181,13 +183,13 @@ function BlockDragPreview({ block, dropPreview, dragType }: BlockDragPreviewProp
             !block.color && "bg-accent/50"
           )}
           style={{
-            borderColor: block.color ? "rgba(255,255,255,0.2)" : undefined,
-            backgroundColor: block.color ? "rgba(0,0,0,0.2)" : undefined,
+            borderColor: blockColor ? "rgba(255,255,255,0.2)" : undefined,
+            backgroundColor: blockColor ? "rgba(0,0,0,0.2)" : undefined,
           }}
         >
           <div
             className="flex items-center gap-2 text-xs font-medium"
-            style={{ color: block.color ? "white" : "hsl(var(--primary))" }}
+            style={{ color: blockColor ? "white" : "hsl(var(--primary))" }}
           >
             <Calendar className="h-3 w-3" />
             <span>

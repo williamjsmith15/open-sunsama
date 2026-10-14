@@ -1,4 +1,5 @@
 import type { CalendarCreateAnchor } from "@/hooks/useDragToCreate";
+import { useBlockColor } from "@/hooks/useProjects";
 import * as React from "react";
 import {
   format,
@@ -316,7 +317,7 @@ function MultiDayBlock({
   const top = calculateYFromTime(renderStart);
   const durationMins = differenceInMinutes(renderEnd, renderStart);
   const height = (durationMins / 60) * HOUR_HEIGHT;
-  const color = block.color ?? "#3B82F6";
+  const color = useBlockColor()(block);
 
   const widthPct = 100 / layout.columnCount - COLUMN_GAP_PCT;
   const leftPct = (100 / layout.columnCount) * layout.lane;

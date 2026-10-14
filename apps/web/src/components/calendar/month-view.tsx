@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useBlockColor } from "@/hooks/useProjects";
 import {
   format,
   startOfMonth,
@@ -101,6 +102,7 @@ export function MonthView({
   onExternalEventClick,
   onBlockClick,
 }: MonthViewProps) {
+  const blockColor = useBlockColor();
   const days = React.useMemo(() => {
     const firstOfMonth = startOfMonth(month);
     const lastOfMonth = endOfMonth(month);
@@ -156,7 +158,7 @@ export function MonthView({
                 kind: "block" as const,
                 id: b.id,
                 title: b.title,
-                color: b.color ?? "#3B82F6",
+                color: blockColor(b),
                 onClick: onBlockClick ? () => onBlockClick(b) : undefined,
               })),
               ...events

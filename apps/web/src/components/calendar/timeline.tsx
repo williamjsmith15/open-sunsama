@@ -1,4 +1,5 @@
 import type { CalendarCreateAnchor } from "@/hooks/useDragToCreate";
+import { useBlockColor } from "@/hooks/useProjects";
 import * as React from "react";
 import {
   format,
@@ -102,6 +103,7 @@ export function Timeline({
   onTimeSlotClick,
   className,
 }: TimelineProps) {
+  const blockColor = useBlockColor();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const hours = React.useMemo(() => generateHours(), []);
   // Tick once a minute so the now-indicator actually advances down the
@@ -458,7 +460,7 @@ export function Timeline({
                 top={dropPreview.top}
                 height={dropPreview.height}
                 {...(dragState.block?.color
-                  ? { color: dragState.block.color }
+                  ? { color: blockColor(dragState.block) }
                   : dragState.event?.calendar?.color
                     ? { color: dragState.event.calendar.color }
                     : {})}

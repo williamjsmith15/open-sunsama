@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useBlockColor } from "@/hooks/useProjects";
 import { format, differenceInMinutes } from "date-fns";
 import type { TimeBlock as TimeBlockType } from "@open-sunsama/types";
 import { cn } from "@/lib/utils";
@@ -88,8 +89,9 @@ export function TimeBlock({
   const durationMins = differenceInMinutes(endTime, startTime);
   const height = (durationMins / 60) * HOUR_HEIGHT;
 
-  // Get colors
-  const colors = getBlockColors(block);
+  // Get colors (a project's colour for blocks of its tasks)
+  const blockColor = useBlockColor();
+  const colors = getBlockColors({ ...block, color: blockColor(block) });
 
   // Determine if block is too short to show full content
   const isCompact = height < 48;

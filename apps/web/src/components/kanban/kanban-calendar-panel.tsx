@@ -1,4 +1,5 @@
 import { useTasksDnd } from "@/lib/dnd/tasks-dnd-context";
+import { useBlockColor } from "@/hooks/useProjects";
 import type { CalendarCreateAnchor } from "@/hooks/useDragToCreate";
 import * as React from "react";
 import { useDndMonitor, useDroppable, type DragMoveEvent } from "@dnd-kit/core";
@@ -89,6 +90,7 @@ export function KanbanCalendarPanel({
   onTimeSlotClick,
   onViewTask,
 }: KanbanCalendarPanelProps) {
+  const blockColor = useBlockColor();
   const dateString = format(date, "yyyy-MM-dd");
   const { data: timeBlocks = [] } = useTimeBlocks({ date: dateString });
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -772,7 +774,7 @@ export function KanbanCalendarPanel({
                 top={dropPreview.top}
                 height={dropPreview.height}
                 {...(dragState.block?.color
-                  ? { color: dragState.block.color }
+                  ? { color: blockColor(dragState.block) }
                   : dragState.event?.calendar?.color
                     ? { color: dragState.event.calendar.color }
                     : {})}
