@@ -42,7 +42,7 @@ import {
   useCreateTask,
 } from "@/hooks/useTasks";
 import { useHoveredTask, useIsMobile } from "@/hooks";
-import { useCreateSubtask, useUpdateSubtask } from "@/hooks/useSubtasks";
+import { useCreateSubtask, useSubtasks, useUpdateSubtask } from "@/hooks/useSubtasks";
 import { useDefaultTaskMins } from "@/hooks/useDefaultTaskMins";
 import { useAddTaskPosition, usePlaceNewTask } from "@/hooks/useAddTaskPosition";
 import { BottomSheetContent } from "@/components/ui/bottom-sheet";
@@ -152,6 +152,7 @@ export function TaskModal({
   const createSubtask = useCreateSubtask();
   const updateSubtask = useUpdateSubtask();
   const [isCreating, setIsCreating] = React.useState(false);
+  const { data: taskSubtasks } = useSubtasks(task?.id ?? "");
   const defaultMins = useDefaultTaskMins();
 
   React.useEffect(() => {
@@ -893,7 +894,13 @@ export function TaskModal({
       />
     )
   );
-  const plannedColumn = (
+  // Until set by hand, the planned time is the subtasks' total.
+  const plannedFromSubtasks =
+    !isCompose &&
+    !!renderTask &&
+    !renderTask.estimatedMinsManual &&
+    (taskSubtasks ?? []).some((s) => (s.estimatedMins ?? 0) > 0);
+  const plannedDropdown = (
     <TimeDropdown
       ref={plannedTimeRef}
       value={plannedMins}
@@ -904,6 +911,19 @@ export function TaskModal({
       placeholder="--:--"
       className={timeValue}
     />
+  );
+  const plannedColumn = plannedFromSubtasks ? (
+    <div
+      className="relative"
+      title="Total of the subtasks' planned times. Set a time to override it; clear it to go back to the total."
+    >
+      {plannedDropdown}
+      <span className="pointer-events-none absolute -bottom-3.5 right-0 whitespace-nowrap text-[10px] text-muted-foreground/70">
+        from subtasks
+      </span>
+    </div>
+  ) : (
+    plannedDropdown
   );
   const times = (
     <div className="flex shrink-0 items-center gap-4">

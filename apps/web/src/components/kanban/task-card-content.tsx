@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Check, Clock } from "lucide-react";
+import { useDraggable } from "@dnd-kit/core";
 import type {
   Task,
   Subtask,
@@ -315,6 +316,7 @@ export function TaskCardContent({
           <SubtaskChecklistPreview
             subtasks={subtasks!}
             onToggleSubtask={onToggleSubtask}
+            task={isCompleted ? undefined : task}
           />
         </div>
       )}
@@ -344,9 +346,12 @@ const SUBTASK_PREVIEW = 4;
 export function SubtaskChecklistPreview({
   subtasks,
   onToggleSubtask,
+  task,
 }: {
   subtasks: Pick<Subtask, "id" | "title" | "completed">[];
   onToggleSubtask?: (subtaskId: string) => void;
+  /** The subtasks' task: with it, open subtasks can be dragged onto the calendar. */
+  task?: Task;
 }) {
   const [showAll, setShowAll] = React.useState(false);
   // One more row costs the same space as the "+1 more" line, so show it.
@@ -356,7 +361,7 @@ export function SubtaskChecklistPreview({
   return (
     <ul className="space-y-px">
       {visible.map((subtask) => (
-        <li key={subtask.id}>
+        <DraggableSubtask key={subtask.id} subtask={subtask} task={task}>
           <button
             type="button"
             role="checkbox"
@@ -386,7 +391,7 @@ export function SubtaskChecklistPreview({
               {subtask.title}
             </span>
           </button>
-        </li>
+        </DraggableSubtask>
       ))}
       {fold && (
         <li>
@@ -403,5 +408,48 @@ export function SubtaskChecklistPreview({
         </li>
       )}
     </ul>
+  );
+}
+
+/** Payload of a subtask dragged from a card. */
+export interface SubtaskDragData {
+  type: "subtask";
+  subtask: Pick<Subtask, "id" | "title" | "completed"> & { estimatedMins?: number | null };
+  task: Task;
+}
+
+/**
+ * A subtask row that can be dragged onto the board's calendar to block time
+ * for just that subtask. A click still ticks it off: a drag only starts
+ * once the pointer moves.
+ */
+function DraggableSubtask({
+  subtask,
+  task,
+  children,
+}: {
+  subtask: SubtaskDragData["subtask"];
+  task?: Task;
+  children: React.ReactNode;
+}) {
+  const enabled = !!task && !subtask.completed;
+  const data: SubtaskDragData | undefined = task ? { type: "subtask", subtask, task } : undefined;
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: `subtask-${subtask.id}`,
+    data,
+    disabled: !enabled,
+  });
+  return (
+    <li
+      ref={setNodeRef}
+      {...(enabled ? listeners : {})}
+      {...(enabled ? attributes : {})}
+      role={undefined}
+      tabIndex={undefined}
+      className={cn(isDragging && "opacity-40")}
+      title={enabled ? "Drag onto the calendar to plan this subtask" : undefined}
+    >
+      {children}
+    </li>
   );
 }

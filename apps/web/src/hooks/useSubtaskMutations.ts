@@ -7,7 +7,7 @@ import type {
 import { getApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
-import { subtaskKeys } from "@/lib/query-keys";
+import { subtaskKeys, taskKeys } from "@/lib/query-keys";
 
 /**
  * Create a subtask. Optimistically inserts a placeholder so the new row
@@ -148,6 +148,10 @@ export function useUpdateSubtask() {
             st.id === updatedSubtask.id ? updatedSubtask : st
           ) ?? []
       );
+      // The task's planned time follows its subtasks' on the server.
+      if (data.estimatedMins !== undefined) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      }
 
       // Make completion toggles undoable (title edits aren't recorded here).
       if (

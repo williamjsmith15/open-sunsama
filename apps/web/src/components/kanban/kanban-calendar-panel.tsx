@@ -250,17 +250,21 @@ export function KanbanCalendarPanel({
   useDndMonitor({
     onDragStart: () => { cardDragActive.current = true; },
     onDragMove(event: DragMoveEvent) {
-      const task = event.active.data.current?.task as Task | undefined;
+      const dragged = event.active.data.current as
+        | { task?: Task; subtask?: { title: string; estimatedMins?: number | null } }
+        | undefined;
+      // A dragged subtask shows its own title and planned time.
+      const item = dragged?.subtask ?? dragged?.task;
       const y = pointerY.current;
-      if (event.over?.id !== `calendar-${dateString}` || !task || y === null) {
+      if (event.over?.id !== `calendar-${dateString}` || !item || y === null) {
         setCardPreview(null);
         return;
       }
       const start = timeAt(y);
       setCardPreview({
-        title: task.title,
+        title: item.title,
         start,
-        end: addMinutes(start, task.estimatedMins ?? DEFAULT_DROP_MINS),
+        end: addMinutes(start, item.estimatedMins ?? DEFAULT_DROP_MINS),
       });
     },
     onDragEnd: () => { cardDragActive.current = false; cardDropEndedAt.current = Date.now(); setCardPreview(null); },

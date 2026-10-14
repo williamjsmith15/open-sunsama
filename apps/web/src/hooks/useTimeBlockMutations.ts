@@ -8,7 +8,7 @@ import type {
 } from "@open-sunsama/types";
 import { getApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
-import { timeBlockKeys } from "@/lib/query-keys";
+import { subtaskKeys, taskKeys, timeBlockKeys } from "@/lib/query-keys";
 import { trackGoal } from "@/lib/analytics";
 
 /**
@@ -74,6 +74,13 @@ export function useUpdateTimeBlock() {
 
       // Invalidate lists to ensure consistency
       queryClient.invalidateQueries({ queryKey: timeBlockKeys.lists() });
+      // A linked block's new length re-plans its task on the server.
+      if (updatedTimeBlock.taskId) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      }
+      if (updatedTimeBlock.subtaskId) {
+        queryClient.invalidateQueries({ queryKey: subtaskKeys.all });
+      }
     },
     onError: (error) => {
       toast({

@@ -33,11 +33,13 @@ import { SHORTCUTS, formatShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useIntegrationProviders } from "@/hooks/useIntegrations";
 
 // Extended sort option that includes direction
-export type SortOption = "position" | "priority-desc" | "priority-asc" | "createdAt-desc" | "createdAt-asc";
+export type SortOption = "position" | "schedule" | "priority-desc" | "priority-asc" | "createdAt-desc" | "createdAt-asc";
 
 // Map to extract base sort field and direction
-export function parseSortOption(sort: SortOption): { field: TaskSortBy; direction: "asc" | "desc" } {
+export function parseSortOption(sort: SortOption): { field: TaskSortBy | "schedule"; direction: "asc" | "desc" } {
   switch (sort) {
+    case "schedule":
+      return { field: "schedule", direction: "asc" };
     case "priority-desc":
       return { field: "priority", direction: "desc" };
     case "priority-asc":
@@ -54,6 +56,7 @@ export function parseSortOption(sort: SortOption): { field: TaskSortBy; directio
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "position", label: "Manual" },
+  { value: "schedule", label: "Schedule (unplanned, then by time)" },
   { value: "priority-desc", label: "Priority (P0 → P3)" },
   { value: "priority-asc", label: "Priority (P3 → P0)" },
   { value: "createdAt-desc", label: "Date (Newest first)" },
@@ -88,7 +91,7 @@ interface KanbanBoardToolbarProps {
   onTagFilterChange: (value: TagFilterValue) => void;
 }
 
-const VALID_SORT_OPTIONS: SortOption[] = ["position", "priority-desc", "priority-asc", "createdAt-desc", "createdAt-asc"];
+const VALID_SORT_OPTIONS: SortOption[] = ["position", "schedule", "priority-desc", "priority-asc", "createdAt-desc", "createdAt-asc"];
 
 /**
  * Hook to manage sort preference with localStorage persistence

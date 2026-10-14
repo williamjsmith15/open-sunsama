@@ -31,6 +31,7 @@ import { ScrollArea, Skeleton } from "@/components/ui";
 import { SortableTaskCard, TaskCard, TaskCardPlaceholder } from "./task-card";
 import { AddTaskInline } from "./add-task-inline";
 import { type SortOption, parseSortOption } from "./kanban-board-toolbar";
+import { orderBySchedule } from "@/lib/schedule-order";
 import { useTasksDnd } from "@/lib/dnd/tasks-dnd-context";
 
 // Priority order for sorting (lower number = higher priority)
@@ -118,6 +119,8 @@ export function DayColumn({
       const { field, direction } = parseSortOption(sortBy);
 
       switch (field) {
+        case "schedule":
+          return orderBySchedule(sorted, blockStartByTaskId);
         case "priority":
           return sorted.sort((a, b) => {
             const priorityA = PRIORITY_ORDER[a.priority] ?? 2;
@@ -142,7 +145,7 @@ export function DayColumn({
           return sorted.sort((a, b) => a.position - b.position);
       }
     },
-    [sortBy]
+    [sortBy, blockStartByTaskId]
   );
 
   // Separate pending and completed tasks

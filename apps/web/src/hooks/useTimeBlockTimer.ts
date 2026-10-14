@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { TimeBlock } from "@open-sunsama/types";
 import { toast } from "@/hooks/use-toast";
-import { timeBlockKeys } from "@/lib/query-keys";
+import { subtaskKeys, taskKeys, timeBlockKeys } from "@/lib/query-keys";
 import { useUpdateTimeBlock } from "./useTimeBlockMutations";
 import { useApiClient } from "@/lib/api";
 
@@ -132,6 +132,9 @@ export function useCascadeResizeTimeBlock() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: timeBlockKeys.lists() });
+      // The resized block's task gets a new planned time on the server.
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: subtaskKeys.all });
     },
     onError: (error) => {
       toast({

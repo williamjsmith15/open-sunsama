@@ -1,7 +1,7 @@
 import { usePriorityShortcut } from "@/hooks/useKeyboardShortcuts";
 import * as React from "react";
 import { format, isToday, isTomorrow, parse } from "date-fns";
-import { ArrowDown, ArrowUp, Calendar, Clock, ListPlus } from "lucide-react";
+import { ArrowDown, ArrowUp, Calendar, Clock, FolderOpen, ListPlus } from "lucide-react";
 import type { TaskPriority } from "@open-sunsama/types";
 import { cn, formatDuration } from "@/lib/utils";
 import { useCreateTask } from "@/hooks/useTasks";
@@ -15,6 +15,8 @@ import { PriorityIcon, PRIORITY_META } from "@/components/ui/priority-badge";
 import { PriorityMenu } from "./priority-menu";
 import { DatePickerPopover } from "./task-date-picker";
 import { parseSubtaskTitles } from "./subtask-add-row";
+import { ProjectDot, ProjectMenu } from "@/components/projects/project-picker";
+import { useProjectMap } from "@/hooks/useProjects";
 
 interface DraftLine {
   id: number;
@@ -39,6 +41,8 @@ interface AddTaskComposerProps {
   /** The day the task starts on; null adds it to the backlog. */
   scheduledDate: string | null;
   initialTitle?: string;
+  /** Project the new task starts in. */
+  projectId?: string | null;
   /** Called after the task is added, or to dismiss. */
   onDone: () => void;
   /**
@@ -79,6 +83,7 @@ export function AddTaskComposer({
   showPosition = true,
   placeholder = "Task description…",
   context,
+  projectId: initialProjectId = null,
 }: AddTaskComposerProps) {
   const [title, setTitle] = React.useState(initialTitle);
   const [date, setDate] = React.useState<string | null>(scheduledDate);
@@ -86,6 +91,9 @@ export function AddTaskComposer({
   // Ideas keep their own planned time; only tasks start with the default.
   const [planned, setPlanned] = React.useState<number | null>(onSubmit ? null : defaultMins);
   const [priority, setPriority] = React.useState<TaskPriority>("P2");
+  const [projectId, setProjectId] = React.useState<string | null>(initialProjectId);
+  const [projectOpen, setProjectOpen] = React.useState(false);
+  const project = useProjectMap().get(projectId ?? "");
   const [plannedOpen, setPlannedOpen] = React.useState(false);
   const [priorityOpen, setPriorityOpen] = React.useState(false);
   usePriorityShortcut(true, (value) => {
@@ -134,6 +142,7 @@ export function AddTaskComposer({
         scheduledDate: date ?? undefined,
         estimatedMins: planned,
         priority,
+        projectId: projectId ?? undefined,
       })
       .then(async (task) => {
         // Explicit positions keep the typed order; the requests run in parallel.
@@ -335,6 +344,46 @@ export function AddTaskComposer({
               </DatePickerPopover>
             </span>
           </WithShortcut>
+          )}
+
+          {/* Ideas have no project; only tasks offer one. */}
+          {!onSubmit && (
+            <Popover open={projectOpen} onOpenChange={setProjectOpen}>
+              <PopoverTrigger asChild>
+                <WithShortcut label="Project" side="bottom">
+                  <button
+                    type="button"
+                    aria-label={`Project: ${project?.name ?? "None"}`}
+                    className={cn(chip, project && "text-foreground")}
+                  >
+                    {project ? (
+                      <>
+                        <ProjectDot color={project.color} />
+                        <span className="max-w-[8rem] truncate">{project.name}</span>
+                      </>
+                    ) : (
+                      <FolderOpen className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </WithShortcut>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-0"
+                align="end"
+                onCloseAutoFocus={(e) => {
+                  e.preventDefault();
+                  refocus();
+                }}
+              >
+                <ProjectMenu
+                  value={projectId}
+                  onChange={(id) => {
+                    setProjectId(id);
+                    setProjectOpen(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
           )}
 
           <Popover open={plannedOpen} onOpenChange={setPlannedOpen}>

@@ -28,6 +28,7 @@ import {
   ideaKeys,
 } from "@/hooks/useIdeas";
 import { TaskCard } from "@/components/kanban/task-card";
+import type { SubtaskDragData } from "@/components/kanban/task-card-content";
 import { taskPriorityCollision } from "./collision-detection";
 
 interface TasksDndContextValue {
@@ -85,6 +86,7 @@ export function TasksDndProvider({ children }: TasksDndProviderProps) {
   );
 
   const [activeIdea, setActiveIdea] = React.useState<Idea | null>(null);
+  const [activeSubtask, setActiveSubtask] = React.useState<SubtaskDragData | null>(null);
   const promoteIdea = usePromoteIdea(activeIdea?.boardId);
   const reorderIdeas = useReorderIdeas(activeIdea?.boardId);
   const saveTaskAsIdea = useSaveTaskAsIdea();
@@ -152,8 +154,10 @@ export function TasksDndProvider({ children }: TasksDndProviderProps) {
   const handleDragStart = React.useCallback((event: DragStartEvent) => {
     const { active } = event;
     setActiveIdea(active.data.current?.idea ?? null);
+    const data = active.data.current as SubtaskDragData | undefined;
+    setActiveSubtask(data?.type === "subtask" ? data : null);
     const task = active.data.current?.task as Task | undefined;
-    if (task) {
+    if (task && data?.type !== "subtask") {
       setActiveTask(task);
       setActiveOverColumn(task.scheduledDate || null);
     }
@@ -191,9 +195,28 @@ export function TasksDndProvider({ children }: TasksDndProviderProps) {
 
       setActiveTask(null);
       setActiveIdea(null);
+      setActiveSubtask(null);
       setActiveOverColumn(null);
 
       if (!over) return;
+
+      // A subtask dropped on the calendar gets its own block on its task;
+      // the task stays on its day. Dropped anywhere else, nothing happens.
+      const dragged = active.data.current as SubtaskDragData | undefined;
+      if (dragged?.type === "subtask") {
+        if (dropTarget?.type !== "calendar" || !calendarStart) return;
+        createTimeBlock.mutate({
+          taskId: dragged.task.id,
+          subtaskId: dragged.subtask.id,
+          title: dragged.subtask.title,
+          startTime: calendarStart,
+          endTime: addMinutes(
+            calendarStart,
+            dragged.subtask.estimatedMins ?? DEFAULT_DROP_MINS
+          ),
+        });
+        return;
+      }
 
       const taskId = String(active.id);
       const task = active.data.current?.task as Task | undefined;
@@ -447,6 +470,7 @@ export function TasksDndProvider({ children }: TasksDndProviderProps) {
 
   const handleDragCancel = React.useCallback(() => {
     setActiveIdea(null);
+    setActiveSubtask(null);
     setActiveTask(null);
     setActiveOverColumn(null);
   }, []);
@@ -456,9 +480,9 @@ export function TasksDndProvider({ children }: TasksDndProviderProps) {
       activeTask,
       activeOverColumn,
       pointerY,
-      isDragging: !!activeTask || !!activeIdea,
+      isDragging: !!activeTask || !!activeIdea || !!activeSubtask,
     }),
-    [activeTask, activeIdea, activeOverColumn]
+    [activeTask, activeIdea, activeSubtask, activeOverColumn]
   );
 
   return (
@@ -483,6 +507,11 @@ export function TasksDndProvider({ children }: TasksDndProviderProps) {
           {activeIdea && (
             <div className="pointer-events-none w-[264px] rounded-lg bg-card p-3 text-sm shadow-lg">
               {activeIdea.title}
+            </div>
+          )}
+          {activeSubtask && (
+            <div className="pointer-events-none max-w-[264px] truncate rounded-md bg-card px-2.5 py-1.5 text-[13px] shadow-lg ring-1 ring-border/60">
+              {activeSubtask.subtask.title}
             </div>
           )}
           {activeTask && (
