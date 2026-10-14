@@ -5,10 +5,11 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { getDb, eq, and, asc, timeBlocks, tasks, users, sql } from '@open-sunsama/database';
-import { NotFoundError, uuidSchema } from '@open-sunsama/utils';
+import { getDb, eq, and, asc, timeBlocks, tasks, subtasks, users, sql } from '@open-sunsama/database';
+import { NotFoundError, ValidationError, uuidSchema } from '@open-sunsama/utils';
 import { auth, requireScopes, type AuthVariables } from '../middleware/auth.js';
 import { calculateCascadeShifts } from '../services/time-block-cascade.js';
+import { syncEstimateFromBlocks } from '../services/task-blocks.js';
 import {
   createTimeBlockSchema, updateTimeBlockSchema, timeBlockFilterSchema, calculateDuration,
   quickScheduleSchema, calculateEndTime, cascadeResizeSchema, autoScheduleSchema,
@@ -156,6 +157,12 @@ timeBlocksRouter.post('/', requireScopes('time-blocks:write'), zValidator('json'
     const [task] = await db.select().from(tasks).where(and(eq(tasks.id, data.taskId), eq(tasks.userId, userId))).limit(1);
     if (!task) throw new NotFoundError('Task', data.taskId);
   }
+  if (data.subtaskId) {
+    if (!data.taskId) throw new ValidationError('A subtask block needs its task');
+    const [subtask] = await db.select({ id: subtasks.id }).from(subtasks)
+      .where(and(eq(subtasks.id, data.subtaskId), eq(subtasks.taskId, data.taskId))).limit(1);
+    if (!subtask) throw new NotFoundError('Subtask', data.subtaskId);
+  }
 
   const durationMins = calculateDuration(data.startTime, data.endTime);
   let position = data.position;
@@ -168,7 +175,7 @@ timeBlocksRouter.post('/', requireScopes('time-blocks:write'), zValidator('json'
   }
 
   const [newTimeBlock] = await db.insert(timeBlocks).values({
-    userId, taskId: data.taskId ?? null, title: data.title, description: data.description ?? null,
+    userId, taskId: data.taskId ?? null, subtaskId: data.subtaskId ?? null, title: data.title, description: data.description ?? null,
     date: data.date, startTime: data.startTime, endTime: data.endTime, durationMins, color: data.color, position,
   }).returning();
 
@@ -317,6 +324,13 @@ timeBlocksRouter.get('/:id', requireScopes('time-blocks:read'), zValidator('para
   return c.json({ success: true, data: { ...result.timeBlock, task: result.task || null } });
 });
 
+/** Re-plan a resized block's task (or subtask) and tell its clients. */
+async function syncTaskEstimate(userId: string, block: { taskId: string | null; subtaskId: string | null }) {
+  if (!block.taskId) return;
+  const task = await syncEstimateFromBlocks(userId, { taskId: block.taskId, subtaskId: block.subtaskId });
+  if (task) publishEvent(userId, 'task:updated', { taskId: task.id, scheduledDate: task.scheduledDate });
+}
+
 /** PATCH /time-blocks/:id - Update a time block */
 timeBlocksRouter.patch('/:id', requireScopes('time-blocks:write'), zValidator('param', z.object({ id: uuidSchema })), zValidator('json', updateTimeBlockSchema), async (c) => {
   const userId = c.get('userId');
@@ -333,7 +347,11 @@ timeBlocksRouter.patch('/:id', requireScopes('time-blocks:write'), zValidator('p
   }
 
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
-  if (updates.taskId !== undefined) updateData.taskId = updates.taskId;
+  if (updates.taskId !== undefined) {
+    updateData.taskId = updates.taskId;
+    // Linked to another task (or none): it's no longer that subtask's block.
+    if (updates.taskId !== existing.taskId) updateData.subtaskId = null;
+  }
   if (updates.title !== undefined) updateData.title = updates.title;
   if (updates.description !== undefined) updateData.description = updates.description;
   if (updates.date !== undefined) updateData.date = updates.date;
@@ -347,6 +365,11 @@ timeBlocksRouter.patch('/:id', requireScopes('time-blocks:write'), zValidator('p
   }
 
   const [updatedTimeBlock] = await db.update(timeBlocks).set(updateData).where(and(eq(timeBlocks.id, id), eq(timeBlocks.userId, userId))).returning();
+
+  // A linked block that got longer or shorter re-plans its task.
+  if (updatedTimeBlock?.taskId && updatedTimeBlock.durationMins !== existing.durationMins) {
+    await syncTaskEstimate(userId, updatedTimeBlock);
+  }
 
   let task = null;
   if (updatedTimeBlock?.taskId) {
@@ -421,6 +444,12 @@ timeBlocksRouter.patch('/:id/cascade-resize', requireScopes('time-blocks:write')
 
     return results;
   });
+
+  // Only the resized block changes length; the ones pushed later keep theirs.
+  const resized = updatedBlocks.find((b) => b.id === targetBlock.id);
+  if (resized?.taskId && resized.durationMins !== targetBlock.durationMins) {
+    await syncTaskEstimate(userId, resized);
+  }
 
   // Fetch tasks for all updated blocks
   const updatedBlocksWithTasks = await Promise.all(

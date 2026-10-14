@@ -19,6 +19,9 @@ export interface TimeBlock {
   /** ID of the task associated with this time block (optional) */
   taskId: string | null;
 
+  /** Set when the block is for one subtask of `taskId` */
+  subtaskId?: string | null;
+
   /** Title/label for the time block */
   title: string;
 
@@ -62,6 +65,9 @@ export interface TimeBlock {
 export interface CreateTimeBlockInput {
   /** ID of the task to associate with this time block (optional) */
   taskId?: string;
+
+  /** One subtask of `taskId` the block is for (optional) */
+  subtaskId?: string;
 
   /** Title/label for the time block */
   title: string;

@@ -40,7 +40,7 @@ import {
   stopTaskTimer,
   stopSubtaskTimers,
 } from "../lib/timer-service.js";
-import { moveBlocksWithTasks } from "../services/task-blocks.js";
+import { moveBlocksWithTasks, syncEstimateFromSubtasks } from "../services/task-blocks.js";
 import { assertProjectOwned } from "./projects.js";
 import { setTaskTags } from "../services/task-tags.js";
 import { withOneTaskExtras, withTaskExtras } from "../services/task-extras.js";
@@ -398,8 +398,12 @@ tasksRouter.patch(
       if (updates.scheduledDate !== undefined)
         updateData.scheduledDate = updates.scheduledDate;
       if (updates.dueDate !== undefined) updateData.dueDate = updates.dueDate;
-      if (updates.estimatedMins !== undefined)
+      if (updates.estimatedMins !== undefined) {
+        // A planned time typed in is the user's; clearing it hands it back
+        // to the subtasks' total (below).
         updateData.estimatedMins = updates.estimatedMins;
+        updateData.estimatedMinsManual = updates.estimatedMins !== null;
+      }
       if (updates.priority !== undefined) updateData.priority = updates.priority;
       if (updates.completedAt !== undefined)
         updateData.completedAt = updates.completedAt
@@ -441,6 +445,12 @@ tasksRouter.patch(
         .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
         .returning();
 
+      let finalTask = updatedTask;
+      if (updatedTask && updates.estimatedMins === null) {
+        const synced = await syncEstimateFromSubtasks(userId, id, db);
+        if (synced) finalTask = { ...updatedTask, estimatedMins: synced.estimatedMins };
+      }
+
       if (
         updatedTask &&
         updates.scheduledDate !== undefined &&
@@ -471,7 +481,7 @@ tasksRouter.patch(
         });
       }
 
-      return c.json({ success: true, data: await withOneTaskExtras(updatedTask, db) });
+      return c.json({ success: true, data: await withOneTaskExtras(finalTask, db) });
     });
   }
 );

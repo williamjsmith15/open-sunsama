@@ -18,6 +18,8 @@ function parseTimeToMinutes(time: string): number {
  */
 export const createTimeBlockSchema = z.object({
   taskId: uuidSchema.optional().nullable(),
+  /** One subtask of `taskId` this block is for. */
+  subtaskId: uuidSchema.optional().nullable(),
   title: z.string().min(1, { error: 'Title is required' }).max(255),
   description: z.string().max(1000).optional().nullable(),
   date: dateSchema,

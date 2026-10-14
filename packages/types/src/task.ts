@@ -55,6 +55,12 @@ export interface Task {
   estimatedMins: number | null;
 
   /**
+   * True once the planned time was set by hand; until then it follows the
+   * total of the subtasks' planned times.
+   */
+  estimatedMinsManual?: boolean;
+
+  /**
    * Actual time spent on the task in minutes.
    * Tracked via focus mode timer.
    */

@@ -33,6 +33,11 @@ export const tasks = pgTable(
     /** Deadline, separate from the day it's planned for; null when none. */
     dueDate: date("due_date"),
     estimatedMins: integer("estimated_mins"),
+    /**
+     * True once the user sets the planned time themselves. Until then it
+     * follows the total of the subtasks' planned times.
+     */
+    estimatedMinsManual: boolean("estimated_mins_manual").notNull().default(false),
     actualMins: integer("actual_mins").default(0),
     priority: varchar("priority", { length: 2 }).notNull().default("P2"),
     completedAt: timestamp("completed_at"),

@@ -27,6 +27,7 @@ import {
 import { publishEvent } from '../lib/websocket/index.js';
 import { stopTimerFields } from '../lib/timer.js';
 import { startSubtaskTimer, stopSubtaskTimer, withTimerTransition } from '../lib/timer-service.js';
+import { syncEstimateFromSubtasks } from '../services/task-blocks.js';
 
 const subtasksRouter = new Hono<{ Variables: AuthVariables }>();
 subtasksRouter.use('*', auth);
@@ -214,6 +215,9 @@ subtasksRouter.patch(
         .where(and(eq(subtasks.id, id), eq(subtasks.taskId, taskId)))
         .returning();
 
+      // The task's planned time follows its subtasks' unless set by hand.
+      if (updates.estimatedMins !== undefined) await syncEstimateFromSubtasks(userId, taskId, db);
+
       // Publish realtime event (fire and forget) - subtask change affects parent task
       // Get parent task's scheduledDate for the event payload
       const [parentTask] = await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
@@ -305,6 +309,7 @@ subtasksRouter.delete(
     if (!existing) throw new NotFoundError('Subtask', id);
 
     await db.delete(subtasks).where(and(eq(subtasks.id, id), eq(subtasks.taskId, taskId)));
+    if (existing.estimatedMins) await syncEstimateFromSubtasks(userId, taskId, db);
 
     // Publish realtime event (fire and forget) - subtask change affects parent task
     // Get parent task's scheduledDate for the event payload

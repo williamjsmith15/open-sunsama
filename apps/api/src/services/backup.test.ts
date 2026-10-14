@@ -43,7 +43,7 @@ describe("backup", () => {
         tasks: [
           { id: T1, title: "a", seriesId: MISSING, seriesInstanceNumber: 3, timerStartedAt: "2026-01-01T00:00:00Z" },
           { id: T1, title: "duplicate" },
-          { id: T2, title: "b", projectId: "p1" },
+          { id: T2, title: "b", projectId: "p1", estimatedMins: 30 },
           { id: "t3", title: "c", projectId: MISSING },
         ],
         projects: [{ id: "p1", name: "Project" }],
@@ -61,7 +61,11 @@ describe("backup", () => {
           { id: "s1", taskId: T1 },
           { id: "s2", taskId: MISSING },
         ],
-        timeBlocks: [{ id: "b1", taskId: MISSING }],
+        timeBlocks: [
+          { id: "b1", taskId: MISSING },
+          { id: "b2", taskId: T1, subtaskId: "s1" },
+          { id: "b3", taskId: T2, subtaskId: "s1" },
+        ],
         taskExternalLinks: [
           { id: "l1", taskId: T2, accountId: MISSING },
           { id: "l2", taskId: MISSING },
@@ -85,6 +89,10 @@ describe("backup", () => {
     expect(data.taskTags.map((tt) => tt.id)).toEqual(["tt1"]);
     expect(data.taskDependencies.map((d) => d.id)).toEqual(["d1"]);
     expect(data.timeBlocks[0]!.taskId).toBeNull();
+    // A subtask block keeps its subtask only when it's on that subtask's task.
+    expect(data.timeBlocks.map((b) => b.subtaskId ?? null)).toEqual([null, "s1", null]);
+    // Older backups keep existing planned times as set by hand.
+    expect(data.tasks.map((t) => t.estimatedMinsManual)).toEqual([false, true, false]);
     expect(data.taskExternalLinks).toEqual([expect.objectContaining({ id: "l1", accountId: null })]);
     expect(data.ideaColumns.map((c) => c.id)).toEqual(["col"]);
     expect(data.ideas).toEqual([expect.objectContaining({ id: "i1", promotedTaskId: null })]);

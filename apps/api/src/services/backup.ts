@@ -126,6 +126,10 @@ export function sanitizeBackupData(
       task.seriesInstanceNumber = null;
     }
     task.timerStartedAt = null;
+    // Backups from before subtask totals: keep their planned times as set.
+    if (task.estimatedMinsManual === undefined) {
+      task.estimatedMinsManual = task.estimatedMins != null;
+    }
   }
 
   const taskIds = ids(data.tasks);
@@ -141,8 +145,13 @@ export function sanitizeBackupData(
       d.blockerTaskId !== d.blockedTaskId
   );
   for (const subtask of data.subtasks) subtask.timerStartedAt = null;
+  const subtaskTask = new Map(data.subtasks.map((s) => [s.id as string, s.taskId as string]));
   for (const block of data.timeBlocks) {
     if (block.taskId && !taskIds.has(block.taskId as string)) block.taskId = null;
+    // A subtask block must point at a subtask of its own task.
+    if (block.subtaskId && subtaskTask.get(block.subtaskId as string) !== block.taskId) {
+      block.subtaskId = null;
+    }
   }
   data.attachments = data.attachments.filter(
     (a) => !a.taskId || taskIds.has(a.taskId as string)

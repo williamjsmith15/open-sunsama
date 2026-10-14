@@ -44,6 +44,7 @@ interface RawTimeBlock {
   id: string;
   userId: string;
   taskId: string | null;
+  subtaskId?: string | null;
   title: string;
   description?: string | null;
   date: string; // YYYY-MM-DD
@@ -71,6 +72,7 @@ function transformTimeBlock(raw: RawTimeBlock): TimeBlock {
     id: raw.id,
     userId: raw.userId,
     taskId: raw.taskId,
+    subtaskId: raw.subtaskId ?? null,
     title: raw.title,
     startTime: new Date(startDateTime),
     endTime: new Date(endDateTime),

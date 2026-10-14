@@ -4,6 +4,7 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { users } from './users';
 import { tasks } from './tasks';
+import { subtasks } from './subtasks';
 
 export const timeBlocks = pgTable(
   'time_blocks',
@@ -13,6 +14,8 @@ export const timeBlocks = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    // Set when the block is for one subtask; taskId is then its task.
+    subtaskId: uuid('subtask_id').references(() => subtasks.id, { onDelete: 'cascade' }),
     title: varchar('title', { length: 255 }).notNull(),
     description: varchar('description', { length: 1000 }),
     date: date('date').notNull(),
@@ -31,6 +34,7 @@ export const timeBlocks = pgTable(
     // modal's "all blocks for this task" lookup.
     userDateIdx: index('time_blocks_user_date_idx').on(table.userId, table.date),
     taskIdIdx: index('time_blocks_task_id_idx').on(table.taskId),
+    subtaskIdIdx: index('time_blocks_subtask_id_idx').on(table.subtaskId),
   })
 );
 
