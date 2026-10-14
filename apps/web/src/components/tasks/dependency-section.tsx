@@ -4,7 +4,8 @@ import type { Task, TaskDependencyRef } from "@open-sunsama/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useSearchTasks } from "@/hooks/useSearchTasks";
-import { useAddDependency, useRemoveDependency } from "@/hooks/useDependencies";
+import { useAddDependency, useAddNextStep, useRemoveDependency } from "@/hooks/useDependencies";
+import { takeNextStepFocus } from "@/lib/open-task";
 import { useProjectMap } from "@/hooks/useProjects";
 import { ProjectDot } from "@/components/projects/project-picker";
 
@@ -118,6 +119,45 @@ function AddBlocker({ task }: { task: Task }) {
 }
 
 /**
+ * Type a title and press Enter to add a task that waits on this one, in the
+ * same project. The field stays open to add more.
+ */
+function AddNextStep({ task }: { task: Task }) {
+  const [title, setTitle] = React.useState("");
+  const addNextStep = useAddNextStep();
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    if (!takeNextStepFocus(task.id)) return;
+    const id = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [task.id]);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        const trimmed = title.trim();
+        if (!trimmed) return;
+        addNextStep.mutate({ after: task, title: trimmed.slice(0, 500) });
+        setTitle("");
+      }}
+      className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground focus-within:bg-accent/40"
+    >
+      <Plus className="h-3.5 w-3.5 shrink-0" />
+      <input
+        ref={inputRef}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.stopPropagation()}
+        placeholder="Add next step…"
+        aria-label="Add next step"
+        maxLength={500}
+        className="min-w-0 flex-1 bg-transparent text-foreground outline-hidden placeholder:text-muted-foreground"
+      />
+    </form>
+  );
+}
+
+/**
  * Task editor section: what this task waits on (editable) and what waits on
  * it. Clicking a task opens it via `onOpenTask`.
  */
@@ -149,16 +189,15 @@ export function DependencySection({
         ))}
         <AddBlocker task={task} />
       </div>
-      {blocking.length > 0 && (
-        <div>
-          <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-            Blocks
-          </p>
-          {blocking.map((dep) => (
-            <RefRow key={dep.id} dep={dep} onOpen={onOpenTask} />
-          ))}
-        </div>
-      )}
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+          Blocks
+        </p>
+        {blocking.map((dep) => (
+          <RefRow key={dep.id} dep={dep} onOpen={onOpenTask} />
+        ))}
+        <AddNextStep task={task} />
+      </div>
     </div>
   );
 }

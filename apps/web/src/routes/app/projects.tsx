@@ -6,6 +6,7 @@ import {
   ChevronRight,
   FolderKanban,
   Inbox,
+  Link2,
   Loader2,
   MoreHorizontal,
   Pencil,
@@ -47,6 +48,8 @@ import {
   ProjectDialog,
 } from "@/components/projects/project-dialog";
 import { ProjectGraph } from "@/components/projects/project-graph";
+import { ProjectTime } from "@/components/projects/project-time";
+import { useLinkChain, useUnlinkTasks } from "@/hooks/useDependencies";
 import { openTask } from "@/lib/open-task";
 
 type ProjectView = "list" | "graph";
@@ -144,11 +147,16 @@ function TaskSection({
   onSelect,
   onComplete,
   hideProject,
+  pickOrder,
+  onPick,
 }: {
   section: Section;
   onSelect: (task: Task) => void;
   onComplete: (task: Task) => void;
   hideProject: boolean;
+  /** While picking tasks to link: each picked task's place in the chain */
+  pickOrder?: Map<string, number>;
+  onPick?: (task: Task, range: boolean) => void;
 }) {
   const [expanded, setExpanded] = React.useState(!section.collapsedByDefault);
   return (
@@ -174,15 +182,43 @@ function TaskSection({
         </span>
       </button>
       {expanded &&
-        section.tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            hideProject={hideProject}
-            onSelect={() => onSelect(task)}
-            onComplete={() => onComplete(task)}
-          />
-        ))}
+        section.tasks.map((task) => {
+          const row = (
+            <TaskRow
+              key={task.id}
+              task={task}
+              hideProject={hideProject}
+              onSelect={() => onSelect(task)}
+              onComplete={() => onComplete(task)}
+            />
+          );
+          if (!onPick) return row;
+          const place = pickOrder?.get(task.id);
+          // Picking: the whole row picks the task; its number is its place.
+          return (
+            <div key={task.id} className={cn("relative rounded-md", place && "bg-primary/5")}>
+              {row}
+              <button
+                type="button"
+                aria-pressed={!!place}
+                aria-label={place ? `Step ${place}: ${task.title}` : `Pick ${task.title}`}
+                onClick={(e) => onPick(task, e.shiftKey)}
+                className="absolute inset-0 z-10 flex items-center rounded-md pl-0.5 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <span
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
+                    place
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-dashed border-muted-foreground/50 bg-background"
+                  )}
+                >
+                  {place ?? ""}
+                </span>
+              </button>
+            </div>
+          );
+        })}
     </div>
   );
 }
@@ -290,6 +326,8 @@ function ProjectHeader({
         )}
       </div>
 
+      <ProjectTime project={project} />
+
       {project.description && (
         <p className="max-w-2xl whitespace-pre-wrap text-[13px] text-muted-foreground">
           {project.description}
@@ -337,6 +375,17 @@ export default function ProjectsPage() {
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const completeTask = useCompleteTask();
   const [tagFilter, setTagFilter] = React.useState<TagFilterValue>(null);
+  // Picking tasks to link in order (List view of a project).
+  const [picking, setPicking] = React.useState(false);
+  const [picked, setPicked] = React.useState<string[]>([]);
+  const pickAnchor = React.useRef<string | null>(null);
+  const linkChain = useLinkChain();
+  const unlinkTasks = useUnlinkTasks();
+  const stopPicking = () => {
+    setPicking(false);
+    setPicked([]);
+    pickAnchor.current = null;
+  };
   const [view, setViewState] = React.useState<ProjectView>(readView);
   const setView = (v: ProjectView) => {
     setViewState(v);
@@ -363,6 +412,8 @@ export default function ProjectsPage() {
   }, [projects, selected]);
 
   const select = React.useCallback((id: ProjectSelection) => {
+    setPicking(false);
+    setPicked([]);
     setSelected(id);
     store(id);
     setSheetOpen(false);
@@ -379,6 +430,33 @@ export default function ProjectsPage() {
     selected && selected !== NO_PROJECT
       ? projects?.find((p) => p.id === selected)
       : undefined;
+
+  const listOrder = React.useMemo(() => sections.flatMap((s) => s.tasks), [sections]);
+  const pickOrder = React.useMemo(
+    () => new Map(picked.map((id, i) => [id, i + 1])),
+    [picked]
+  );
+  // Click adds (or removes) one task at the end of the chain; shift-click
+  // adds every task from the last one clicked down to this one.
+  const pick = (task: Task, range: boolean) => {
+    const anchor = pickAnchor.current;
+    if (range && anchor && anchor !== task.id) {
+      const from = listOrder.findIndex((t) => t.id === anchor);
+      const to = listOrder.findIndex((t) => t.id === task.id);
+      if (from !== -1 && to !== -1) {
+        const step = from < to ? 1 : -1;
+        const run: string[] = [];
+        for (let i = from + step; i !== to + step; i += step) run.push(listOrder[i]!.id);
+        setPicked((prev) => [...prev, ...run.filter((id) => !prev.includes(id))]);
+        pickAnchor.current = task.id;
+        return;
+      }
+    }
+    setPicked((prev) =>
+      prev.includes(task.id) ? prev.filter((id) => id !== task.id) : [...prev, task.id]
+    );
+    pickAnchor.current = task.id;
+  };
 
   if (isLoading) {
     return (
@@ -519,7 +597,58 @@ export default function ProjectsPage() {
                   <QuickAdd projectId={project?.id ?? null} />
                 </div>
                 <TagFilter value={tagFilter} onChange={setTagFilter} />
+                {project && !picking && (
+                  <button
+                    type="button"
+                    onClick={() => setPicking(true)}
+                    title="Pick tasks in the order they happen, then link them"
+                    className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                    Link tasks
+                  </button>
+                )}
               </div>
+              {picking && (
+                <div className="sticky top-0 z-20 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-surface px-3 py-2 text-xs shadow-card">
+                  <span className="min-w-0 flex-1 text-muted-foreground">
+                    {picked.length === 0
+                      ? "Click tasks in the order they happen. Shift-click picks a range."
+                      : `${picked.length} picked: each will wait on the one before it.`}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setPicked(listOrder.filter((t) => !t.completedAt).map((t) => t.id));
+                      pickAnchor.current = null;
+                    }}
+                  >
+                    All open, in list order
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    disabled={picked.length < 2 || unlinkTasks.isPending}
+                    onClick={() => unlinkTasks.mutate(picked, { onSuccess: stopPicking })}
+                  >
+                    Unlink
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={picked.length < 2 || linkChain.isPending}
+                    onClick={() => linkChain.mutate(picked, { onSuccess: stopPicking })}
+                  >
+                    Link in order
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={stopPicking}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
               {tasksLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -535,6 +664,8 @@ export default function ProjectsPage() {
                       key={`${selected}-${section.key}`}
                       section={section}
                       hideProject={!!project}
+                      pickOrder={picking ? pickOrder : undefined}
+                      onPick={picking ? pick : undefined}
                       onSelect={setSelectedTask}
                       onComplete={(task) =>
                         completeTask.mutate({ id: task.id, completed: !task.completedAt })

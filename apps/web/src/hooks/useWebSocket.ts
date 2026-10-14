@@ -175,6 +175,8 @@ function handleWebSocketEvent(
     case "timeblock:updated":
     case "timeblock:deleted":
       batcher.schedule(timeBlockKeys.lists());
+      // Project time on the calendar
+      batcher.schedule(projectKeys.lists());
       if (
         event.payload &&
         typeof event.payload === "object" &&

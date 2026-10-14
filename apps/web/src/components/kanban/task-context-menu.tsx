@@ -17,7 +17,9 @@ import {
   FolderOpen,
   Hash,
   X,
+  ListEnd,
 } from "lucide-react";
+import { openTaskForNextStep } from "@/lib/open-task";
 import type { Task, CreateTaskSeriesInput, TaskPriority } from "@open-sunsama/types";
 import {
   ContextMenu,
@@ -449,6 +451,12 @@ export function TaskContextMenu({
               </ContextMenuShortcut>
             </ContextMenuItem>
           )}
+
+          {/* A new task that waits on this one */}
+          <ContextMenuItem onClick={() => openTaskForNextStep(task.id)}>
+            <ListEnd className="mr-2 h-4 w-4" />
+            Add next step…
+          </ContextMenuItem>
 
           {/* Duplicate */}
           <ContextMenuItem onClick={handleDuplicate}>
