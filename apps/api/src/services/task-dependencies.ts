@@ -146,6 +146,72 @@ export async function addDependency(
   await db.insert(taskDependencies).values({ userId, blockerTaskId, blockedTaskId });
 }
 
+/**
+ * Link tasks into a chain in the given order: each one waits on the one
+ * before it. Links that already exist are kept; one that would make a loop
+ * refuses the whole chain. Returns how many links were added.
+ */
+export async function linkChain(
+  userId: string,
+  taskIds: string[],
+  db: Db = getDb()
+): Promise<number> {
+  if (new Set(taskIds).size !== taskIds.length) {
+    throw new ValidationError("A task can only appear once in a chain");
+  }
+  const owned = await db
+    .select({ id: tasks.id, title: tasks.title })
+    .from(tasks)
+    .where(and(eq(tasks.userId, userId), inArray(tasks.id, taskIds)));
+  const titles = new Map(owned.map((t) => [t.id, t.title]));
+  for (const id of taskIds) if (!titles.has(id)) throw new NotFoundError("Task", id);
+
+  const edges = await db
+    .select({
+      blockerTaskId: taskDependencies.blockerTaskId,
+      blockedTaskId: taskDependencies.blockedTaskId,
+    })
+    .from(taskDependencies)
+    .where(eq(taskDependencies.userId, userId));
+  const added: Array<{ userId: string; blockerTaskId: string; blockedTaskId: string }> = [];
+  for (let i = 1; i < taskIds.length; i++) {
+    const blockerTaskId = taskIds[i - 1]!;
+    const blockedTaskId = taskIds[i]!;
+    if (edges.some((e) => e.blockerTaskId === blockerTaskId && e.blockedTaskId === blockedTaskId)) {
+      continue;
+    }
+    if (wouldCreateCycle(edges, blockerTaskId, blockedTaskId)) {
+      throw new ValidationError(
+        `That would make a loop: "${titles.get(blockerTaskId)}" already waits on "${titles.get(blockedTaskId)}"`
+      );
+    }
+    const edge = { userId, blockerTaskId, blockedTaskId };
+    edges.push(edge);
+    added.push(edge);
+  }
+  if (added.length) await db.insert(taskDependencies).values(added);
+  return added.length;
+}
+
+/** Remove every link between two of the given tasks. Returns how many. */
+export async function unlinkAmong(
+  userId: string,
+  taskIds: string[],
+  db: Db = getDb()
+): Promise<number> {
+  const removed = await db
+    .delete(taskDependencies)
+    .where(
+      and(
+        eq(taskDependencies.userId, userId),
+        inArray(taskDependencies.blockerTaskId, taskIds),
+        inArray(taskDependencies.blockedTaskId, taskIds)
+      )
+    )
+    .returning({ id: taskDependencies.id });
+  return removed.length;
+}
+
 /** Remove `blocker → blocked`. */
 export async function removeDependency(
   userId: string,

@@ -15,6 +15,7 @@ import {
   sql,
   projects,
   tasks,
+  timeBlocks,
 } from "@open-sunsama/database";
 import { NotFoundError, ValidationError, uuidSchema } from "@open-sunsama/utils";
 import { auth, requireScopes, type AuthVariables } from "../middleware/auth.js";
@@ -41,7 +42,7 @@ export async function assertProjectOwned(userId: string, projectId: string) {
   if (!project) throw new NotFoundError("Project", projectId);
 }
 
-/** Projects with open/completed task counts, in rail order. */
+/** Projects with open/completed task counts and time totals, in rail order. */
 async function listProjects(userId: string) {
   const db = getDb();
   const [rows, counts] = await Promise.all([
@@ -55,6 +56,14 @@ async function listProjects(userId: string) {
         projectId: tasks.projectId,
         open: sql<number>`count(*) filter (where ${tasks.completedAt} is null)::int`,
         completed: sql<number>`count(*) filter (where ${tasks.completedAt} is not null)::int`,
+        // Planned minutes of every task, and of the finished ones.
+        totalMins: sql<number>`coalesce(sum(${tasks.estimatedMins}), 0)::int`,
+        doneMins: sql<number>`coalesce(sum(${tasks.estimatedMins}) filter (where ${tasks.completedAt} is not null), 0)::int`,
+        // Open tasks' time on the calendar, at most each task's planned time.
+        scheduledMins: sql<number>`coalesce(sum(least(
+          (select coalesce(sum(tb.duration_mins), 0) from ${timeBlocks} tb where tb.task_id = "tasks"."id"),
+          coalesce(${tasks.estimatedMins}, 2147483647)
+        )) filter (where ${tasks.completedAt} is null), 0)::int`,
       })
       .from(tasks)
       .where(and(eq(tasks.userId, userId), isNotNull(tasks.projectId)))
@@ -65,6 +74,9 @@ async function listProjects(userId: string) {
     ...p,
     openTaskCount: byId.get(p.id)?.open ?? 0,
     completedTaskCount: byId.get(p.id)?.completed ?? 0,
+    totalMins: byId.get(p.id)?.totalMins ?? 0,
+    doneMins: byId.get(p.id)?.doneMins ?? 0,
+    scheduledMins: byId.get(p.id)?.scheduledMins ?? 0,
   }));
 }
 

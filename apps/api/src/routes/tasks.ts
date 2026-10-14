@@ -31,6 +31,7 @@ import {
   taskFilterSchema,
   reorderTasksSchema,
   addDependencySchema,
+  dependencyChainSchema,
 } from "../validation/tasks.js";
 import { publishEvent } from "../lib/websocket/index.js";
 import { stopTimerFields } from "../lib/timer.js";
@@ -44,7 +45,7 @@ import { moveBlocksWithTasks, syncEstimateFromSubtasks } from "../services/task-
 import { assertProjectOwned } from "./projects.js";
 import { setTaskTags } from "../services/task-tags.js";
 import { withOneTaskExtras, withTaskExtras } from "../services/task-extras.js";
-import { addDependency, dependentTaskIds, removeDependency } from "../services/task-dependencies.js";
+import { addDependency, dependentTaskIds, linkChain, removeDependency, unlinkAmong } from "../services/task-dependencies.js";
 import { format, subDays } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { getPgBoss, JOBS } from "../lib/pgboss.js";
@@ -661,6 +662,34 @@ tasksRouter.post(
     }
 
     return c.json({ success: true, data: await withOneTaskExtras(updatedTask, db) });
+  }
+);
+
+/** POST /tasks/dependencies/chain - each task waits on the one before it */
+tasksRouter.post(
+  "/dependencies/chain",
+  requireScopes("tasks:write"),
+  zValidator("json", dependencyChainSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { taskIds } = c.req.valid("json");
+    const added = await getDb().transaction((tx) => linkChain(userId, taskIds, tx));
+    for (const taskId of taskIds) publishEvent(userId, "task:updated", { taskId });
+    return c.json({ success: true, data: { added } });
+  }
+);
+
+/** POST /tasks/dependencies/unlink - remove every link among the tasks */
+tasksRouter.post(
+  "/dependencies/unlink",
+  requireScopes("tasks:write"),
+  zValidator("json", dependencyChainSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { taskIds } = c.req.valid("json");
+    const removed = await unlinkAmong(userId, taskIds);
+    for (const taskId of taskIds) publishEvent(userId, "task:updated", { taskId });
+    return c.json({ success: true, data: { removed } });
   }
 );
 

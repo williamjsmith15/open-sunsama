@@ -26,6 +26,12 @@ export interface Project {
   openTaskCount?: number;
   /** Completed tasks in the project (list and get endpoints) */
   completedTaskCount?: number;
+  /** Planned minutes of all its tasks (list and get endpoints) */
+  totalMins?: number;
+  /** Planned minutes of its completed tasks */
+  doneMins?: number;
+  /** Open tasks' minutes on the calendar, at most each task's planned time */
+  scheduledMins?: number;
   createdAt: Date;
   updatedAt: Date;
 }

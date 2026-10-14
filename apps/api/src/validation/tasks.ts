@@ -92,6 +92,11 @@ export const addDependencySchema = z.object({
   blockerTaskId: uuidSchema,
 });
 
+/** Tasks in order: each waits on the one before (chain), or all links among them (unlink). */
+export const dependencyChainSchema = z.object({
+  taskIds: z.array(uuidSchema).min(2).max(100),
+});
+
 /**
  * Schema for reordering tasks
  */
