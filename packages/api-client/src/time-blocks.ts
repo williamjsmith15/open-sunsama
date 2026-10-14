@@ -78,6 +78,9 @@ function transformTimeBlock(raw: RawTimeBlock): TimeBlock {
     notes: raw.description ?? null,
     createdAt: new Date(raw.createdAt),
     updatedAt: new Date(raw.updatedAt),
+    // Keep the linked task the API sends; the calendar colours a block by
+    // its task's project.
+    ...(raw.task !== undefined ? { task: (raw.task as TimeBlock["task"]) ?? null } : {}),
   };
 }
 

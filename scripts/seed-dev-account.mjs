@@ -74,10 +74,13 @@ async function seed(token) {
     color: "#22C55E",
     icon: "Rocket",
   }, token);
-  await task({ title: "Get three quotes for the kitchen", scheduledDate: day(0), priority: "P1", projectId: home.id });
+  const errand = await must("POST", "/tags", { name: "errand", color: "#F59E0B" }, token);
+  const deep = await must("POST", "/tags", { name: "deep-work", color: "#A855F7" }, token);
+  await must("POST", "/tags", { name: "waiting", color: "#6B7280" }, token);
+  await task({ title: "Get three quotes for the kitchen", scheduledDate: day(0), priority: "P1", projectId: home.id, tagIds: [errand.id] });
   await task({ title: "Pick hallway paint", scheduledDate: day(2), projectId: home.id });
   await task({ title: "Order worktop samples", projectId: home.id });
-  await task({ title: "Write the launch post", scheduledDate: day(1), estimatedMins: 90, projectId: launch.id });
+  await task({ title: "Write the launch post", scheduledDate: day(1), estimatedMins: 90, projectId: launch.id, tagIds: [deep.id] });
   await task({ title: "Set up a landing page", priority: "P1", projectId: launch.id });
 
   const review = await task({

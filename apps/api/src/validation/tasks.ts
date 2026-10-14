@@ -27,6 +27,8 @@ export const createTaskSchema = z.object({
   priority: prioritySchema.optional(),
   position: z.number().int().nonnegative().optional(),
   projectId: uuidSchema.optional().nullable(),
+  /** Tags to put on the new task */
+  tagIds: z.array(uuidSchema).max(50).optional(),
 });
 
 /**
@@ -43,6 +45,8 @@ export const updateTaskSchema = z.object({
   position: z.number().int().nonnegative().optional(),
   subtasksHidden: z.boolean().optional(),
   projectId: uuidSchema.optional().nullable(),
+  /** Replaces the task's tags */
+  tagIds: z.array(uuidSchema).max(50).optional(),
 });
 
 /**
@@ -63,6 +67,8 @@ export const taskFilterSchema = z.object({
   priority: prioritySchema.optional(),
   /** A project's tasks, or "none" for tasks without a project */
   projectId: z.union([uuidSchema, z.literal('none')]).optional(),
+  /** Tasks carrying this tag */
+  tagId: uuidSchema.optional(),
   sortBy: sortBySchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
   // Must stay >= RANGE_FETCH_LIMIT in apps/web/src/hooks/useKanbanRangePrefetch.ts,

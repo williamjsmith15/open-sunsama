@@ -18,6 +18,7 @@ import {
   tasks,
   subtasks,
   taskExternalLinks,
+  taskTags,
   sql,
   notificationPreferences,
 } from "@open-sunsama/database";
@@ -40,6 +41,7 @@ import {
 } from "../lib/timer-service.js";
 import { moveBlocksWithTasks } from "../services/task-blocks.js";
 import { assertProjectOwned } from "./projects.js";
+import { setTaskTags, withTagIds, withTaskTagIds } from "../services/task-tags.js";
 import { format, subDays } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { getPgBoss, JOBS } from "../lib/pgboss.js";
@@ -75,6 +77,10 @@ tasksRouter.get(
     if (filters.projectId === "none") conditions.push(isNull(tasks.projectId));
     else if (filters.projectId)
       conditions.push(eq(tasks.projectId, filters.projectId));
+    if (filters.tagId)
+      conditions.push(
+        sql`EXISTS (SELECT 1 FROM ${taskTags} WHERE ${taskTags.taskId} = ${tasks.id} AND ${taskTags.tagId} = ${filters.tagId})`
+      );
     if (filters.search) {
       // Every whitespace-separated term must appear in the title or the notes,
       // so "web analytics" matches a title where the words aren't adjacent.
@@ -180,7 +186,7 @@ tasksRouter.get(
 
     return c.json({
       success: true,
-      data: withLinks,
+      data: await withTagIds(withLinks, db),
       meta: {
         page: filters.page,
         limit: filters.limit,
@@ -219,19 +225,25 @@ tasksRouter.post(
       position = (maxPos?.max ?? -1) + 1;
     }
 
-    const [newTask] = await db
-      .insert(tasks)
-      .values({
-        userId,
-        title: data.title,
-        notes: data.notes ?? null,
-        scheduledDate: data.scheduledDate ?? null,
-        estimatedMins: data.estimatedMins ?? null,
-        priority: data.priority ?? "P2",
-        position,
-        projectId: data.projectId ?? null,
-      })
-      .returning();
+    const newTask = await db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(tasks)
+        .values({
+          userId,
+          title: data.title,
+          notes: data.notes ?? null,
+          scheduledDate: data.scheduledDate ?? null,
+          estimatedMins: data.estimatedMins ?? null,
+          priority: data.priority ?? "P2",
+          position,
+          projectId: data.projectId ?? null,
+        })
+        .returning();
+      if (inserted && data.tagIds?.length) {
+        await setTaskTags(userId, inserted.id, data.tagIds, tx);
+      }
+      return withTaskTagIds(inserted, tx);
+    });
 
     // Publish realtime event (fire and forget)
     if (newTask) {
@@ -282,7 +294,7 @@ tasksRouter.post(
     if (!task) throw new NotFoundError("Task", id);
 
     const { task: updatedTask, stoppedTask } = await startTaskTimer(db, userId, task);
-    return c.json({ success: true, data: updatedTask, stoppedTask });
+    return c.json({ success: true, data: await withTaskTagIds(updatedTask), stoppedTask });
   }
 );
 
@@ -307,7 +319,7 @@ tasksRouter.post(
     // Stopping a timer that isn't running changes nothing, so a double
     // click or a stop from a second device can't fail.
     const updatedTask = await stopTaskTimer(db, userId, task);
-    return c.json({ success: true, data: updatedTask });
+    return c.json({ success: true, data: await withTaskTagIds(updatedTask) });
   }
 );
 
@@ -336,7 +348,10 @@ tasksRouter.get(
       .from(taskExternalLinks)
       .where(eq(taskExternalLinks.taskId, id));
 
-    return c.json({ success: true, data: { ...task, externalLinks: links } });
+    return c.json({
+      success: true,
+      data: { ...(await withTaskTagIds(task, db))!, externalLinks: links },
+    });
   }
 );
 
@@ -376,6 +391,9 @@ tasksRouter.patch(
       if (updates.subtasksHidden !== undefined)
         updateData.subtasksHidden = updates.subtasksHidden;
       if (updates.projectId !== undefined) updateData.projectId = updates.projectId;
+      if (updates.tagIds !== undefined) {
+        await setTaskTags(userId, id, updates.tagIds, db);
+      }
       let timerStopped: number | null = null;
       if (updates.actualMins !== undefined) {
         // A typed actual time replaces what the timer logged; a running timer
@@ -435,7 +453,7 @@ tasksRouter.patch(
         });
       }
 
-      return c.json({ success: true, data: updatedTask });
+      return c.json({ success: true, data: await withTaskTagIds(updatedTask, db) });
     });
   }
 );
@@ -571,7 +589,7 @@ tasksRouter.post(
         });
       }
 
-      return c.json({ success: true, data: updatedTask });
+      return c.json({ success: true, data: await withTaskTagIds(updatedTask, db) });
     });
   }
 );
@@ -607,7 +625,7 @@ tasksRouter.post(
       });
     }
 
-    return c.json({ success: true, data: updatedTask });
+    return c.json({ success: true, data: await withTaskTagIds(updatedTask, db) });
   }
 );
 
@@ -666,7 +684,7 @@ tasksRouter.post(
 
     return c.json({
       success: true,
-      data: updatedTasks,
+      data: await withTagIds(updatedTasks, db),
       message: "Tasks reordered successfully",
     });
   }

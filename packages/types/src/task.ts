@@ -74,6 +74,9 @@ export interface Task {
   /** Project this task belongs to; null when unassigned */
   projectId: string | null;
 
+  /** IDs of the task's tags. Present on task endpoints; absent from older APIs. */
+  tagIds?: string[];
+
   /**
    * ID of the task series this instance belongs to.
    * Null for regular (non-recurring) tasks.
@@ -139,6 +142,9 @@ export interface CreateTaskInput {
 
   /** Project to put the task in */
   projectId?: string | null;
+
+  /** Tags to put on the task */
+  tagIds?: string[];
 }
 
 /**
@@ -182,6 +188,9 @@ export interface UpdateTaskInput {
 
   /** Move to a project (null removes it from its project) */
   projectId?: string | null;
+
+  /** Replace the task's tags */
+  tagIds?: string[];
 }
 
 /**
@@ -264,6 +273,9 @@ export interface TaskFilterInput {
 
   /** A project's tasks, or "none" for tasks without a project */
   projectId?: string;
+
+  /** Tasks carrying this tag */
+  tagId?: string;
 
   /**
    * If true, the server inlines each task's subtasks into the response as

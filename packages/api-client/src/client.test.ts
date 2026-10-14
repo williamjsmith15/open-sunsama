@@ -9,6 +9,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createServer, type Server } from "node:http";
 import { createOpenSunsamaClient } from "./client.js";
 import { createAuthApi } from "./auth.js";
+import { createTimeBlocksApi } from "./time-blocks.js";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -190,5 +191,40 @@ describe("createOpenSunsamaClient — 401 retry preserves request body", () => {
     // The retried request carried the full body, not an empty/consumed stream.
     expect(JSON.parse(received[1]!.body)).toEqual(payload);
     expect(JSON.parse(result.data.echoed)).toEqual(payload);
+  });
+});
+
+describe("createTimeBlocksApi — linked task", () => {
+  it("keeps the task the API sends with each block", async () => {
+    const block = {
+      id: "b1",
+      userId: "u1",
+      taskId: "t1",
+      title: "Write",
+      date: "2026-10-14",
+      startTime: "09:00",
+      endTime: "10:00",
+      durationMins: 60,
+      color: "#3B82F6",
+      position: 0,
+      createdAt: "2026-10-14T08:00:00.000Z",
+      updatedAt: "2026-10-14T08:00:00.000Z",
+    };
+    const customFetch = vi.fn(async () =>
+      jsonResponse(200, {
+        success: true,
+        data: [
+          { ...block, task: { id: "t1", projectId: "p1" } },
+          { ...block, id: "b2", taskId: null, task: null },
+        ],
+      })
+    ) as unknown as typeof fetch;
+    const client = createOpenSunsamaClient({ baseUrl: "https://api.test", token: "token", customFetch });
+
+    const [linked, unlinked] = await createTimeBlocksApi(client).list();
+
+    expect(linked?.task?.projectId).toBe("p1");
+    expect(linked?.startTime).toBeInstanceOf(Date);
+    expect(unlinked?.task).toBeNull();
   });
 });

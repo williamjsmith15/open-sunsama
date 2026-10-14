@@ -25,6 +25,8 @@ import {
   ideas,
   ideaSubtasks,
   projects,
+  tags,
+  taskTags,
 } from "@open-sunsama/database";
 
 export const BACKUP_FORMAT = "open-sunsama-backup";
@@ -48,6 +50,8 @@ export const BACKUP_TABLES = [
   { key: "taskSeries", table: taskSeries },
   { key: "tasks", table: tasks },
   { key: "subtasks", table: subtasks },
+  { key: "tags", table: tags },
+  { key: "taskTags", table: taskTags },
   { key: "timeBlocks", table: timeBlocks },
   { key: "attachments", table: attachments },
   { key: "taskExternalLinks", table: taskExternalLinks },
@@ -124,6 +128,10 @@ export function sanitizeBackupData(
 
   const taskIds = ids(data.tasks);
   data.subtasks = data.subtasks.filter((s) => taskIds.has(s.taskId as string));
+  const tagIds = ids(data.tags);
+  data.taskTags = data.taskTags.filter(
+    (tt) => taskIds.has(tt.taskId as string) && tagIds.has(tt.tagId as string)
+  );
   for (const subtask of data.subtasks) subtask.timerStartedAt = null;
   for (const block of data.timeBlocks) {
     if (block.taskId && !taskIds.has(block.taskId as string)) block.taskId = null;
@@ -210,6 +218,7 @@ export async function exportUserData(
     columnRows,
     ideaRows,
     projectRows,
+    tagRows,
   ] = await Promise.all([
     db.select().from(taskSeries).where(eq(taskSeries.userId, userId)),
     db.select().from(tasks).where(eq(tasks.userId, userId)),
@@ -220,10 +229,11 @@ export async function exportUserData(
     db.select().from(ideaColumns).where(eq(ideaColumns.userId, userId)),
     db.select().from(ideas).where(eq(ideas.userId, userId)),
     db.select().from(projects).where(eq(projects.userId, userId)),
+    db.select().from(tags).where(eq(tags.userId, userId)),
   ]);
 
   // Child tables without a user_id column are reached through their parent.
-  const [subtaskRows, ideaSubtaskRows] = await Promise.all([
+  const [subtaskRows, ideaSubtaskRows, taskTagRows] = await Promise.all([
     db
       .select(getTableColumns(subtasks))
       .from(subtasks)
@@ -234,10 +244,17 @@ export async function exportUserData(
       .from(ideaSubtasks)
       .innerJoin(ideas, eq(ideaSubtasks.ideaId, ideas.id))
       .where(eq(ideas.userId, userId)),
+    db
+      .select(getTableColumns(taskTags))
+      .from(taskTags)
+      .innerJoin(tasks, eq(taskTags.taskId, tasks.id))
+      .where(eq(tasks.userId, userId)),
   ]);
 
   const data: Record<BackupTableKey, Row[]> = {
     projects: projectRows,
+    tags: tagRows,
+    taskTags: taskTagRows,
     taskSeries: seriesRows,
     tasks: taskRows,
     subtasks: subtaskRows,
@@ -294,6 +311,8 @@ export async function restoreUserData(
       .from(tasks)
       .where(eq(tasks.userId, userId));
     await tx.delete(subtasks).where(inArray(subtasks.taskId, userTaskIds));
+    await tx.delete(taskTags).where(inArray(taskTags.taskId, userTaskIds));
+    await tx.delete(tags).where(eq(tags.userId, userId));
     await tx.delete(tasks).where(eq(tasks.userId, userId));
     await tx.delete(taskSeries).where(eq(taskSeries.userId, userId));
     await tx.delete(projects).where(eq(projects.userId, userId));

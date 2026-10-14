@@ -179,6 +179,8 @@ function filtersToSearchParams(
     priority: filters.priority,
     // A project's tasks, or "none" for tasks without a project
     projectId: filters.projectId,
+    // Tasks carrying this tag
+    tagId: filters.tagId,
     // Sort by field
     sortBy: filters.sortBy,
     // Limit results

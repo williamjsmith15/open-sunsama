@@ -40,6 +40,12 @@ export interface TimeBlock {
    */
   color: string | null;
 
+  /**
+   * The linked task, when the API included it (it does on list, get, create
+   * and update). Used for the project colour on the calendar.
+   */
+  task?: Task | null;
+
   /** Additional notes or details about the time block */
   notes: string | null;
 

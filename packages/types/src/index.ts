@@ -206,3 +206,6 @@ export type {
   CreateProjectInput,
   UpdateProjectInput,
 } from "./project.js";
+
+// Tag types
+export type { Tag, CreateTagInput, UpdateTagInput } from "./tag.js";

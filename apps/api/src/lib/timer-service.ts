@@ -25,7 +25,7 @@ import { publishEvent } from "./websocket/index.js";
 import { stopTimerFields, timerSeconds } from "./timer.js";
 
 type Database = ReturnType<typeof getDb>;
-export type TimerDb = Pick<Database, "select" | "update" | "execute" | "delete">;
+export type TimerDb = Pick<Database, "select" | "insert" | "update" | "execute" | "delete">;
 type Db = TimerDb;
 type Task = typeof tasks.$inferSelect;
 type Subtask = typeof subtasks.$inferSelect;
