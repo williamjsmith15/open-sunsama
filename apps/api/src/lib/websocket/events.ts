@@ -48,6 +48,8 @@ export type WebSocketEventType =
   | "idea:updated"
   | "idea:deleted"
   | "idea:reordered"
+  // Backup restore replaced the user's data; clients refetch everything
+  | "data:restored"
   // Connection events
   | "connected";
 

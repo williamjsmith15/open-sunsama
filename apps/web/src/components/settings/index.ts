@@ -14,6 +14,7 @@ export { McpSettings } from "./mcp-settings";
 export { CalendarSettings } from "./calendar-settings";
 export { DesktopSettings } from "./desktop-settings";
 export { RoutinesSettings } from "./routines-settings";
+export { BackupSettings } from "./backup-settings";
 export { ICloudConnectDialog } from "./icloud-connect-dialog";
 export {
   GoogleIcon,

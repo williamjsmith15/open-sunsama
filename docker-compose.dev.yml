@@ -1,0 +1,143 @@
+# Isolated development stack. Separate from docker-compose.yml (the live
+# self-hosted instance): its own project name, database volume and ports.
+#
+#   docker compose -f docker-compose.dev.yml run --rm tools bun install
+#   docker compose -f docker-compose.dev.yml run --rm tools bun run typecheck
+#   docker compose -f docker-compose.dev.yml run --rm tools bun run test
+#   docker compose -f docker-compose.dev.yml --profile hot up -d    # hot reload: web :3110, API :3111
+#   docker compose -f docker-compose.dev.yml --profile deploy up -d --build
+#       Production builds of this checkout as dev-planner-web / dev-planner-api
+#       on the `dev-planner` network, for the apperture proxy to serve at
+#       https://dev-planner.$URL and https://dev-planner-api.$URL ($URL from .env).
+#       Also signs in to the test account in .env.dev (DEV_TEST_EMAIL /
+#       DEV_TEST_PASSWORD, gitignored), creating it with sample data if needed.
+#   docker compose -f docker-compose.dev.yml down          # keeps the dev database
+#   docker compose -f docker-compose.dev.yml down -v       # wipes it
+#
+# The dev database is disposable: register throwaway users there.
+
+name: open-sunsama-dev
+
+x-tools: &tools
+  build:
+    context: docker
+    dockerfile: dev.Dockerfile
+  volumes:
+    - .:/repo
+    - bun_cache:/cache
+  environment:
+    DEV_DATABASE_URL: postgresql://dev:dev@db:5432/opensunsama_dev
+    DATABASE_URL: postgresql://dev:dev@db:5432/opensunsama_dev
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: opensunsama_dev
+    ports:
+      - "127.0.0.1:5441:5432"
+    volumes:
+      - dev_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # One-off commands: install, typecheck, lint, test, db:generate
+  tools:
+    <<: *tools
+    profiles: ["tools"]
+
+  # API + web dev servers with hot reload, via scripts/dev-local.mjs.
+  # The browser on the host talks to both, so host and container ports match.
+  app:
+    <<: *tools
+    profiles: ["hot"]
+    command: ["bun", "scripts/dev-local.mjs"]
+    environment:
+      DEV_DATABASE_URL: postgresql://dev:dev@db:5432/opensunsama_dev
+      API_PORT: "3111"
+      WEB_PORT: "3110"
+    ports:
+      - "127.0.0.1:3110:3110"
+      - "127.0.0.1:3111:3111"
+
+  # Production-style builds, the same Dockerfiles as docker-compose.yml.
+  # Service and container names must stay unique: the proxy also joins the
+  # live `planner` network, and a service called `api` or `web` here would
+  # answer to the same DNS alias as the live stack's.
+  dev-planner-api:
+    profiles: ["deploy"]
+    container_name: dev-planner-api
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    command: ["sh", "docker-start.sh"]
+    environment:
+      DATABASE_URL: postgresql://dev:dev@db:5432/opensunsama_dev
+      MIGRATE_ON_START: "true"
+      PORT: "3001"
+      API_URL: https://dev-planner-api.${URL}
+      WEB_APP_URL: https://dev-planner.${URL}
+      FRONTEND_URL: https://dev-planner.${URL}
+      CORS_ORIGIN: https://dev-planner.${URL}
+      EMAIL_WORKERS_ENABLED: "false"
+    volumes:
+      - api_secrets:/app/secrets
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      default:
+      dev-planner:
+
+  dev-planner-web:
+    profiles: ["deploy"]
+    container_name: dev-planner-web
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_API_URL: https://dev-planner-api.${URL}
+    depends_on:
+      - dev-planner-api
+    restart: unless-stopped
+    networks:
+      dev-planner:
+
+  # Signs in to (or creates) the test account from .env.dev and gives it
+  # sample data if it has none. Runs once per `up`.
+  dev-planner-seed:
+    profiles: ["deploy"]
+    build:
+      context: docker
+      dockerfile: dev.Dockerfile
+    command: ["node", "scripts/seed-dev-account.mjs"]
+    volumes:
+      - .:/repo
+    env_file:
+      - path: .env.dev
+        required: false
+    environment:
+      API_URL: http://dev-planner-api:3001
+    depends_on:
+      dev-planner-api:
+        condition: service_healthy
+    restart: "no"
+
+networks:
+  dev-planner:
+    name: dev-planner
+
+volumes:
+  dev_db:
+  api_secrets:
+  bun_cache:

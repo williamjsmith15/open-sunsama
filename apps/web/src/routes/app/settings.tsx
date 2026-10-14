@@ -12,6 +12,7 @@ import {
   Monitor,
   Repeat,
   Plug,
+  DatabaseBackup,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch, useNavigate } from "@tanstack/react-router";
@@ -37,6 +38,7 @@ import {
   DesktopSettings,
   RoutinesSettings,
   IntegrationsSettings,
+  BackupSettings,
 } from "@/components/settings";
 
 type SettingsTab =
@@ -49,6 +51,7 @@ type SettingsTab =
   | "integrations"
   | "notifications"
   | "desktop"
+  | "backup"
   | "api"
   | "mcp";
 
@@ -62,6 +65,7 @@ const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "desktop", label: "Desktop App", icon: Monitor },
+  { id: "backup", label: "Backup", icon: DatabaseBackup },
   { id: "api", label: "API Keys", icon: Key },
   { id: "mcp", label: "MCP", icon: Terminal },
 ];
@@ -86,6 +90,8 @@ function SettingsContent({ tab }: { tab: SettingsTab }) {
       return <NotificationSettings />;
     case "desktop":
       return <DesktopSettings />;
+    case "backup":
+      return <BackupSettings />;
     case "api":
       return <ApiKeysSettings />;
     case "mcp":

@@ -36,6 +36,7 @@ export type WebSocketEventType =
   | "idea:updated"
   | "idea:deleted"
   | "idea:reordered"
+  | "data:restored"
   | "connected";
 
 export interface WebSocketEvent<T = unknown> {
