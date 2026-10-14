@@ -11,6 +11,16 @@ import type { TaskExternalLink } from "./integration.js";
  */
 export type TaskPriority = "P0" | "P1" | "P2" | "P3";
 
+/** A related task, as listed in `blockedBy` / `blocking`. */
+export interface TaskDependencyRef {
+  id: string;
+  title: string;
+  completedAt: Date | string | null;
+  scheduledDate: string | null;
+  dueDate: string | null;
+  projectId: string | null;
+}
+
 /**
  * Represents a task in the Open Sunsama system.
  * Tasks are the core productivity unit that users create, schedule, and complete.
@@ -34,6 +44,9 @@ export interface Task {
    * null indicates an unscheduled/backlog task
    */
   scheduledDate: string | null;
+
+  /** Deadline (YYYY-MM-DD), separate from the day it's planned; null when none */
+  dueDate: string | null;
 
   /**
    * Estimated time to complete the task in minutes.
@@ -76,6 +89,12 @@ export interface Task {
 
   /** IDs of the task's tags. Present on task endpoints; absent from older APIs. */
   tagIds?: string[];
+
+  /** Tasks that must be done before this one. Present on task endpoints. */
+  blockedBy?: TaskDependencyRef[];
+
+  /** Tasks waiting on this one. Present on task endpoints. */
+  blocking?: TaskDependencyRef[];
 
   /**
    * ID of the task series this instance belongs to.
@@ -145,6 +164,9 @@ export interface CreateTaskInput {
 
   /** Tags to put on the task */
   tagIds?: string[];
+
+  /** Deadline (YYYY-MM-DD) */
+  dueDate?: string | null;
 }
 
 /**
@@ -191,6 +213,9 @@ export interface UpdateTaskInput {
 
   /** Replace the task's tags */
   tagIds?: string[];
+
+  /** Deadline (YYYY-MM-DD); null clears it */
+  dueDate?: string | null;
 }
 
 /**
@@ -276,6 +301,9 @@ export interface TaskFilterInput {
 
   /** Tasks carrying this tag */
   tagId?: string;
+
+  /** Tasks due on or before this date (YYYY-MM-DD) */
+  dueBefore?: string;
 
   /**
    * If true, the server inlines each task's subtasks into the response as

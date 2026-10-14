@@ -20,6 +20,7 @@ describe("backup", () => {
     expect(order.indexOf("projects")).toBeLessThan(order.indexOf("tasks"));
     expect(order.indexOf("tags")).toBeLessThan(order.indexOf("taskTags"));
     expect(order.indexOf("tasks")).toBeLessThan(order.indexOf("taskTags"));
+    expect(order.indexOf("tasks")).toBeLessThan(order.indexOf("taskDependencies"));
     expect(order.indexOf("tasks")).toBeLessThan(order.indexOf("subtasks"));
     expect(order.indexOf("tasks")).toBeLessThan(order.indexOf("ideas"));
     expect(order.indexOf("ideaColumns")).toBeLessThan(order.indexOf("ideas"));
@@ -52,6 +53,10 @@ describe("backup", () => {
           { id: "tt2", taskId: T1, tagId: MISSING },
           { id: "tt3", taskId: MISSING, tagId: "g1" },
         ],
+        taskDependencies: [
+          { id: "d1", blockerTaskId: T1, blockedTaskId: T2 },
+          { id: "d2", blockerTaskId: MISSING, blockedTaskId: T2 },
+        ],
         subtasks: [
           { id: "s1", taskId: T1 },
           { id: "s2", taskId: MISSING },
@@ -78,6 +83,7 @@ describe("backup", () => {
     expect(data.tasks[0]).toMatchObject({ seriesId: null, seriesInstanceNumber: null, timerStartedAt: null });
     expect(data.subtasks.map((s) => s.id)).toEqual(["s1"]);
     expect(data.taskTags.map((tt) => tt.id)).toEqual(["tt1"]);
+    expect(data.taskDependencies.map((d) => d.id)).toEqual(["d1"]);
     expect(data.timeBlocks[0]!.taskId).toBeNull();
     expect(data.taskExternalLinks).toEqual([expect.objectContaining({ id: "l1", accountId: null })]);
     expect(data.ideaColumns.map((c) => c.id)).toEqual(["col"]);

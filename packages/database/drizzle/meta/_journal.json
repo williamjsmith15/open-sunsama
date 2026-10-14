@@ -43,6 +43,13 @@
       "when": 1791976458732,
       "tag": "0005_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791978054570,
+      "tag": "0006_dependencies_due_dates",
+      "breakpoints": true
     }
   ]
 }

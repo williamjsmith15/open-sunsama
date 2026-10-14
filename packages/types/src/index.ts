@@ -42,6 +42,7 @@ export type {
 // Task types
 export type {
   Task,
+  TaskDependencyRef,
   TaskPriority,
   TaskSortBy,
   CreateTaskInput,

@@ -30,6 +30,8 @@ export const tasks = pgTable(
     title: varchar("title", { length: 500 }).notNull(),
     notes: text("notes"),
     scheduledDate: date("scheduled_date"),
+    /** Deadline, separate from the day it's planned for; null when none. */
+    dueDate: date("due_date"),
     estimatedMins: integer("estimated_mins"),
     actualMins: integer("actual_mins").default(0),
     priority: varchar("priority", { length: 2 }).notNull().default("P2"),
@@ -81,6 +83,10 @@ export const tasks = pgTable(
     uniqueIndex("tasks_series_date_unique_idx")
       .on(table.seriesId, table.scheduledDate)
       .where(sql`${table.seriesId} IS NOT NULL`),
+    // Due and overdue lookups over open tasks
+    index("tasks_user_due_open_idx")
+      .on(table.userId, table.dueDate)
+      .where(sql`${table.dueDate} IS NOT NULL AND ${table.completedAt} IS NULL`),
     // Project page: a user's tasks in one project
     index("tasks_user_project_idx")
       .on(table.userId, table.projectId)

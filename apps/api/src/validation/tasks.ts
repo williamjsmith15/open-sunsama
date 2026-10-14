@@ -23,6 +23,7 @@ export const createTaskSchema = z.object({
     .min(1, { error: 'Title is required' }).max(500),
   notes: z.string().max(5000).optional().nullable(),
   scheduledDate: dateSchema.optional().nullable(),
+  dueDate: dateSchema.optional().nullable(),
   estimatedMins: z.number().int().positive().max(1440).optional().nullable(),
   priority: prioritySchema.optional(),
   position: z.number().int().nonnegative().optional(),
@@ -38,6 +39,7 @@ export const updateTaskSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   notes: z.string().max(5000).optional().nullable(),
   scheduledDate: dateSchema.optional().nullable(),
+  dueDate: dateSchema.optional().nullable(),
   estimatedMins: z.number().int().positive().max(1440).optional().nullable(),
   actualMins: z.number().int().nonnegative().optional().nullable(),
   priority: prioritySchema.optional(),
@@ -69,6 +71,8 @@ export const taskFilterSchema = z.object({
   projectId: z.union([uuidSchema, z.literal('none')]).optional(),
   /** Tasks carrying this tag */
   tagId: uuidSchema.optional(),
+  /** Tasks due on or before this date */
+  dueBefore: dateSchema.optional(),
   sortBy: sortBySchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
   // Must stay >= RANGE_FETCH_LIMIT in apps/web/src/hooks/useKanbanRangePrefetch.ts,
@@ -79,6 +83,13 @@ export const taskFilterSchema = z.object({
   // prefetch so we don't have to fire a follow-up `subtasks-batch` request
   // for tasks the client already has in hand.
   includeSubtasks: z.enum(['true', 'false']).optional(),
+});
+
+/**
+ * Schema for adding a dependency: `blockerTaskId` must be done first
+ */
+export const addDependencySchema = z.object({
+  blockerTaskId: uuidSchema,
 });
 
 /**

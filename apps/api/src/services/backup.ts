@@ -27,6 +27,7 @@ import {
   projects,
   tags,
   taskTags,
+  taskDependencies,
 } from "@open-sunsama/database";
 
 export const BACKUP_FORMAT = "open-sunsama-backup";
@@ -52,6 +53,7 @@ export const BACKUP_TABLES = [
   { key: "subtasks", table: subtasks },
   { key: "tags", table: tags },
   { key: "taskTags", table: taskTags },
+  { key: "taskDependencies", table: taskDependencies },
   { key: "timeBlocks", table: timeBlocks },
   { key: "attachments", table: attachments },
   { key: "taskExternalLinks", table: taskExternalLinks },
@@ -131,6 +133,12 @@ export function sanitizeBackupData(
   const tagIds = ids(data.tags);
   data.taskTags = data.taskTags.filter(
     (tt) => taskIds.has(tt.taskId as string) && tagIds.has(tt.tagId as string)
+  );
+  data.taskDependencies = data.taskDependencies.filter(
+    (d) =>
+      taskIds.has(d.blockerTaskId as string) &&
+      taskIds.has(d.blockedTaskId as string) &&
+      d.blockerTaskId !== d.blockedTaskId
   );
   for (const subtask of data.subtasks) subtask.timerStartedAt = null;
   for (const block of data.timeBlocks) {
@@ -219,6 +227,7 @@ export async function exportUserData(
     ideaRows,
     projectRows,
     tagRows,
+    dependencyRows,
   ] = await Promise.all([
     db.select().from(taskSeries).where(eq(taskSeries.userId, userId)),
     db.select().from(tasks).where(eq(tasks.userId, userId)),
@@ -230,6 +239,7 @@ export async function exportUserData(
     db.select().from(ideas).where(eq(ideas.userId, userId)),
     db.select().from(projects).where(eq(projects.userId, userId)),
     db.select().from(tags).where(eq(tags.userId, userId)),
+    db.select().from(taskDependencies).where(eq(taskDependencies.userId, userId)),
   ]);
 
   // Child tables without a user_id column are reached through their parent.
@@ -255,6 +265,7 @@ export async function exportUserData(
     projects: projectRows,
     tags: tagRows,
     taskTags: taskTagRows,
+    taskDependencies: dependencyRows,
     taskSeries: seriesRows,
     tasks: taskRows,
     subtasks: subtaskRows,
@@ -300,6 +311,7 @@ export async function restoreUserData(
     // Children first. Deleting tasks cascades to subtasks, attachments and
     // external links; deleting boards cascades to columns, ideas and their
     // subtasks. The explicit deletes keep this correct if a cascade changes.
+    await tx.delete(taskDependencies).where(eq(taskDependencies.userId, userId));
     await tx.delete(timeBlocks).where(eq(timeBlocks.userId, userId));
     await tx.delete(attachments).where(eq(attachments.userId, userId));
     await tx.delete(taskExternalLinks).where(eq(taskExternalLinks.userId, userId));

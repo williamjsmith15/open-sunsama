@@ -80,8 +80,16 @@ async function seed(token) {
   await task({ title: "Get three quotes for the kitchen", scheduledDate: day(0), priority: "P1", projectId: home.id, tagIds: [errand.id] });
   await task({ title: "Pick hallway paint", scheduledDate: day(2), projectId: home.id });
   await task({ title: "Order worktop samples", projectId: home.id });
-  await task({ title: "Write the launch post", scheduledDate: day(1), estimatedMins: 90, projectId: launch.id, tagIds: [deep.id] });
-  await task({ title: "Set up a landing page", priority: "P1", projectId: launch.id });
+  const landing = await task({ title: "Set up a landing page", priority: "P1", scheduledDate: day(0), dueDate: day(2), estimatedMins: 180, projectId: launch.id });
+  const post = await task({ title: "Write the launch post", scheduledDate: day(1), dueDate: day(3), estimatedMins: 90, projectId: launch.id, tagIds: [deep.id] });
+  const beta = await task({ title: "Invite beta testers", scheduledDate: day(3), dueDate: day(5), estimatedMins: 60, projectId: launch.id });
+  const launchDay = await task({ title: "Launch", dueDate: day(7), estimatedMins: 30, projectId: launch.id });
+  const blocks = (blocked, blocker) =>
+    must("POST", `/tasks/${blocked.id}/dependencies`, { blockerTaskId: blocker.id }, token);
+  await blocks(post, landing);
+  await blocks(beta, landing);
+  await blocks(launchDay, post);
+  await blocks(launchDay, beta);
 
   const review = await task({
     title: "Review the backup export",

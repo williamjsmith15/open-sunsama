@@ -30,6 +30,7 @@ import {
   updateTaskSchema,
   taskFilterSchema,
   reorderTasksSchema,
+  addDependencySchema,
 } from "../validation/tasks.js";
 import { publishEvent } from "../lib/websocket/index.js";
 import { stopTimerFields } from "../lib/timer.js";
@@ -41,7 +42,9 @@ import {
 } from "../lib/timer-service.js";
 import { moveBlocksWithTasks } from "../services/task-blocks.js";
 import { assertProjectOwned } from "./projects.js";
-import { setTaskTags, withTagIds, withTaskTagIds } from "../services/task-tags.js";
+import { setTaskTags } from "../services/task-tags.js";
+import { withOneTaskExtras, withTaskExtras } from "../services/task-extras.js";
+import { addDependency, dependentTaskIds, removeDependency } from "../services/task-dependencies.js";
 import { format, subDays } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { getPgBoss, JOBS } from "../lib/pgboss.js";
@@ -77,6 +80,8 @@ tasksRouter.get(
     if (filters.projectId === "none") conditions.push(isNull(tasks.projectId));
     else if (filters.projectId)
       conditions.push(eq(tasks.projectId, filters.projectId));
+    if (filters.dueBefore)
+      conditions.push(sql`${tasks.dueDate} <= ${filters.dueBefore}`);
     if (filters.tagId)
       conditions.push(
         sql`EXISTS (SELECT 1 FROM ${taskTags} WHERE ${taskTags.taskId} = ${tasks.id} AND ${taskTags.tagId} = ${filters.tagId})`
@@ -186,7 +191,7 @@ tasksRouter.get(
 
     return c.json({
       success: true,
-      data: await withTagIds(withLinks, db),
+      data: await withTaskExtras(withLinks, db),
       meta: {
         page: filters.page,
         limit: filters.limit,
@@ -233,6 +238,7 @@ tasksRouter.post(
           title: data.title,
           notes: data.notes ?? null,
           scheduledDate: data.scheduledDate ?? null,
+          dueDate: data.dueDate ?? null,
           estimatedMins: data.estimatedMins ?? null,
           priority: data.priority ?? "P2",
           position,
@@ -242,7 +248,7 @@ tasksRouter.post(
       if (inserted && data.tagIds?.length) {
         await setTaskTags(userId, inserted.id, data.tagIds, tx);
       }
-      return withTaskTagIds(inserted, tx);
+      return withOneTaskExtras(inserted, tx);
     });
 
     // Publish realtime event (fire and forget)
@@ -294,7 +300,7 @@ tasksRouter.post(
     if (!task) throw new NotFoundError("Task", id);
 
     const { task: updatedTask, stoppedTask } = await startTaskTimer(db, userId, task);
-    return c.json({ success: true, data: await withTaskTagIds(updatedTask), stoppedTask });
+    return c.json({ success: true, data: await withOneTaskExtras(updatedTask), stoppedTask });
   }
 );
 
@@ -319,7 +325,7 @@ tasksRouter.post(
     // Stopping a timer that isn't running changes nothing, so a double
     // click or a stop from a second device can't fail.
     const updatedTask = await stopTaskTimer(db, userId, task);
-    return c.json({ success: true, data: await withTaskTagIds(updatedTask) });
+    return c.json({ success: true, data: await withOneTaskExtras(updatedTask) });
   }
 );
 
@@ -350,7 +356,7 @@ tasksRouter.get(
 
     return c.json({
       success: true,
-      data: { ...(await withTaskTagIds(task, db))!, externalLinks: links },
+      data: { ...(await withOneTaskExtras(task, db))!, externalLinks: links },
     });
   }
 );
@@ -380,6 +386,7 @@ tasksRouter.patch(
       if (updates.notes !== undefined) updateData.notes = updates.notes;
       if (updates.scheduledDate !== undefined)
         updateData.scheduledDate = updates.scheduledDate;
+      if (updates.dueDate !== undefined) updateData.dueDate = updates.dueDate;
       if (updates.estimatedMins !== undefined)
         updateData.estimatedMins = updates.estimatedMins;
       if (updates.priority !== undefined) updateData.priority = updates.priority;
@@ -453,7 +460,7 @@ tasksRouter.patch(
         });
       }
 
-      return c.json({ success: true, data: await withTaskTagIds(updatedTask, db) });
+      return c.json({ success: true, data: await withOneTaskExtras(updatedTask, db) });
     });
   }
 );
@@ -587,9 +594,13 @@ tasksRouter.post(
           taskId: updatedTask.id,
           scheduledDate: updatedTask.scheduledDate,
         });
+        // Tasks waiting on this one are now unblocked (or closer to it).
+        for (const dependentId of await dependentTaskIds(id, db)) {
+          publishEvent(userId, "task:updated", { taskId: dependentId });
+        }
       }
 
-      return c.json({ success: true, data: await withTaskTagIds(updatedTask, db) });
+      return c.json({ success: true, data: await withOneTaskExtras(updatedTask, db) });
     });
   }
 );
@@ -623,9 +634,55 @@ tasksRouter.post(
         taskId: updatedTask.id,
         scheduledDate: updatedTask.scheduledDate,
       });
+      for (const dependentId of await dependentTaskIds(id, db)) {
+        publishEvent(userId, "task:updated", { taskId: dependentId });
+      }
     }
 
-    return c.json({ success: true, data: await withTaskTagIds(updatedTask, db) });
+    return c.json({ success: true, data: await withOneTaskExtras(updatedTask, db) });
+  }
+);
+
+/** POST /tasks/:id/dependencies - `blockerTaskId` must be done before this task */
+tasksRouter.post(
+  "/:id/dependencies",
+  requireScopes("tasks:write"),
+  zValidator("param", z.object({ id: uuidSchema })),
+  zValidator("json", addDependencySchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { id } = c.req.valid("param");
+    const { blockerTaskId } = c.req.valid("json");
+    await addDependency(userId, id, blockerTaskId);
+    publishEvent(userId, "task:updated", { taskId: id });
+    publishEvent(userId, "task:updated", { taskId: blockerTaskId });
+    const [task] = await getDb()
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .limit(1);
+    return c.json({ success: true, data: await withOneTaskExtras(task) }, 201);
+  }
+);
+
+/** DELETE /tasks/:id/dependencies/:blockerId - stop waiting on a task */
+tasksRouter.delete(
+  "/:id/dependencies/:blockerId",
+  requireScopes("tasks:write"),
+  zValidator("param", z.object({ id: uuidSchema, blockerId: uuidSchema })),
+  async (c) => {
+    const userId = c.get("userId");
+    const { id, blockerId } = c.req.valid("param");
+    const [task] = await getDb()
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .limit(1);
+    if (!task) throw new NotFoundError("Task", id);
+    await removeDependency(userId, id, blockerId);
+    publishEvent(userId, "task:updated", { taskId: id });
+    publishEvent(userId, "task:updated", { taskId: blockerId });
+    return c.json({ success: true, data: await withOneTaskExtras(task) });
   }
 );
 
@@ -684,7 +741,7 @@ tasksRouter.post(
 
     return c.json({
       success: true,
-      data: await withTagIds(updatedTasks, db),
+      data: await withTaskExtras(updatedTasks, db),
       message: "Tasks reordered successfully",
     });
   }

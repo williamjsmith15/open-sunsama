@@ -265,5 +265,11 @@ export type { Project, NewProject, ProjectStatus } from "./projects";
 export { tags, tagsRelations, taskTags, taskTagsRelations } from "./tags";
 export type { Tag, NewTag, TaskTag } from "./tags";
 
+export {
+  taskDependencies,
+  taskDependenciesRelations,
+} from "./task-dependencies";
+export type { TaskDependency } from "./task-dependencies";
+
 // Re-export relation helpers for query building
 export { relations } from "drizzle-orm";

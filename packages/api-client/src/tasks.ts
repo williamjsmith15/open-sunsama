@@ -181,6 +181,8 @@ function filtersToSearchParams(
     projectId: filters.projectId,
     // Tasks carrying this tag
     tagId: filters.tagId,
+    // Tasks due on or before this date
+    dueBefore: filters.dueBefore,
     // Sort by field
     sortBy: filters.sortBy,
     // Limit results
