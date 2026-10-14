@@ -10,6 +10,7 @@ export { ProfileSettings } from "./profile-settings";
 export { AppearanceSettings } from "./appearance-settings";
 export { NotificationSettings } from "./notification-settings";
 export { TaskSettings } from "./task-settings";
+export { TagSettings } from "./tag-settings";
 export { McpSettings } from "./mcp-settings";
 export { CalendarSettings } from "./calendar-settings";
 export { DesktopSettings } from "./desktop-settings";

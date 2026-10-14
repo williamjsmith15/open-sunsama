@@ -15,6 +15,7 @@ import {
   Repeat,
   Flag,
   FolderOpen,
+  Hash,
   X,
 } from "lucide-react";
 import type { Task, CreateTaskSeriesInput, TaskPriority } from "@open-sunsama/types";
@@ -26,6 +27,7 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
   ContextMenuSub,
+  ContextMenuCheckboxItem,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   PriorityIcon,
@@ -46,6 +48,7 @@ import { toast } from "@/hooks/use-toast";
 import { RepeatConfigDialog } from "./repeat-config-popover";
 import { useProjects } from "@/hooks/useProjects";
 import { ProjectDot } from "@/components/projects/project-picker";
+import { useTags } from "@/hooks/useTags";
 import { cn } from "@/lib/utils";
 
 const PRIORITIES: TaskPriority[] = ["P0", "P1", "P2", "P3"];
@@ -181,6 +184,15 @@ export function TaskContextMenu({
   };
 
   const { data: projects = [] } = useProjects();
+  const { data: allTags = [] } = useTags();
+
+  const handleToggleTag = async (tagId: string) => {
+    const current = task.tagIds ?? [];
+    const tagIds = current.includes(tagId)
+      ? current.filter((id) => id !== tagId)
+      : [...current, tagId];
+    await updateTask.mutateAsync({ id: task.id, data: { tagIds } });
+  };
 
   const handlePriorityChange = async (priority: TaskPriority) => {
     await updateTask.mutateAsync({
@@ -222,6 +234,7 @@ export function TaskContextMenu({
       scheduledDate: task.scheduledDate ?? undefined,
       estimatedMins: task.estimatedMins ?? undefined,
       projectId: task.projectId ?? undefined,
+      tagIds: task.tagIds,
     });
 
     toast({
@@ -354,6 +367,33 @@ export function TaskContextMenu({
               ))}
             </ContextMenuSubContent>
           </ContextMenuSub>
+
+          {/* Tags */}
+          {allTags.length > 0 && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <Hash className="mr-2 h-4 w-4" />
+                Tags
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="max-h-80 overflow-y-auto">
+                {allTags.map((tag) => (
+                  <ContextMenuCheckboxItem
+                    key={tag.id}
+                    checked={(task.tagIds ?? []).includes(tag.id)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => void handleToggleTag(tag.id)}
+                    className="gap-2"
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    <span className="max-w-[14rem] truncate">{tag.name}</span>
+                  </ContextMenuCheckboxItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          )}
 
           {/* Project */}
           <ContextMenuSub>

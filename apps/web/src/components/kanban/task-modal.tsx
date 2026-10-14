@@ -25,6 +25,7 @@ import {
   Pause,
   Copy,
   FolderOpen,
+  Hash,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type {
@@ -78,6 +79,7 @@ import { RepeatConfigDialog } from "./repeat-config-popover";
 import { PriorityMenu } from "./priority-menu";
 import { ProjectDot, ProjectMenu } from "@/components/projects/project-picker";
 import { useProjectMap } from "@/hooks/useProjects";
+import { TagMenu, TagPills } from "@/components/tags/tag-picker";
 import { PriorityIcon, PRIORITY_META } from "@/components/ui/priority-badge";
 import { WithShortcut } from "@/components/ui/with-shortcut";
 import { useCreateTaskSeries } from "@/hooks/useTaskSeries";
@@ -121,6 +123,7 @@ export function TaskModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [priorityOpen, setPriorityOpen] = React.useState(false);
   const [projectOpen, setProjectOpen] = React.useState(false);
+  const [tagsOpen, setTagsOpen] = React.useState(false);
   const projectMap = useProjectMap();
 
   // Grow the title field to fit long titles.
@@ -136,6 +139,7 @@ export function TaskModal({
   const [draftPriority, setDraftPriority] = React.useState<TaskPriority>("P2");
   const [draftDate, setDraftDate] = React.useState<string | null>(null);
   const [draftProjectId, setDraftProjectId] = React.useState<string | null>(null);
+  const [draftTagIds, setDraftTagIds] = React.useState<string[]>([]);
   const [draftSubtasks, setDraftSubtasks] = React.useState<DraftSubtask[]>([]);
   const { addPosition, setAddPosition } = useAddTaskPosition();
   const placeNewTask = usePlaceNewTask(draftDate);
@@ -151,6 +155,7 @@ export function TaskModal({
     setDraftPriority("P2");
     setDraftDate(createDefaults?.scheduledDate ?? null);
     setDraftProjectId(createDefaults?.projectId ?? null);
+    setDraftTagIds([]);
     setDraftSubtasks([]);
   }, [open, isCompose]);
 
@@ -237,6 +242,12 @@ export function TaskModal({
     if (isCompose) setDraftProjectId(projectId);
     if (!task) return;
     await updateTask.mutateAsync({ id: task.id, data: { projectId } });
+  };
+
+  const handleTagsChange = async (tagIds: string[]) => {
+    if (isCompose) setDraftTagIds(tagIds);
+    if (!task) return;
+    await updateTask.mutateAsync({ id: task.id, data: { tagIds } });
   };
 
   usePriorityShortcut(open, (priority) => {
@@ -495,6 +506,7 @@ export function TaskModal({
       scheduledDate: task.scheduledDate ?? undefined,
       estimatedMins: task.estimatedMins ?? undefined,
       projectId: task.projectId ?? undefined,
+      tagIds: task.tagIds,
     });
     toast({ title: "Task duplicated" });
   };
@@ -517,6 +529,7 @@ export function TaskModal({
         estimatedMins: plannedMins ?? undefined,
         priority: draftPriority,
         projectId: draftProjectId ?? undefined,
+        tagIds: draftTagIds.length ? draftTagIds : undefined,
       });
       // In order, so the checklist keeps the order it was typed in.
       for (const [position, st] of draftSubtasks.entries()) {
@@ -551,6 +564,7 @@ export function TaskModal({
           priority: draftPriority,
           scheduledDate: draftDate,
           projectId: draftProjectId,
+          tagIds: draftTagIds,
           estimatedMins: plannedMins,
           actualMins: null,
           completedAt: null,
@@ -686,6 +700,32 @@ export function TaskModal({
                 void handleProjectChange(projectId);
                 setProjectOpen(false);
               }}
+            />
+          </PopoverContent>
+        </Popover>
+        <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={fieldButton}
+              aria-label={`Tags: ${renderTask.tagIds?.length ?? 0}`}
+            >
+              <span className={fieldValue}>
+                {renderTask.tagIds?.length ? (
+                  <TagPills tagIds={renderTask.tagIds} max={3} />
+                ) : (
+                  <>
+                    <Hash className="h-3.5 w-3.5" />
+                    <span>Tags</span>
+                  </>
+                )}
+              </span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <TagMenu
+              value={renderTask.tagIds ?? []}
+              onChange={(tagIds) => void handleTagsChange(tagIds)}
             />
           </PopoverContent>
         </Popover>

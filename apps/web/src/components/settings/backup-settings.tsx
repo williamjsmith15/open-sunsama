@@ -27,6 +27,9 @@ interface BackupFile {
 }
 
 const TABLE_LABELS: Record<string, string> = {
+  projects: "Projects",
+  tags: "Tags",
+  taskTags: "Tags on tasks",
   tasks: "Tasks",
   subtasks: "Subtasks",
   taskSeries: "Routines",

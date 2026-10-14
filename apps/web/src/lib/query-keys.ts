@@ -86,6 +86,11 @@ export const projectKeys = {
   lists: () => [...projectKeys.all, "list"] as const,
 };
 
+export const tagKeys = {
+  all: ["tags"] as const,
+  lists: () => [...tagKeys.all, "list"] as const,
+};
+
 export const ideaBoardKeys = {
   all: ["ideaBoards"] as const,
   lists: () => [...ideaBoardKeys.all, "list"] as const,

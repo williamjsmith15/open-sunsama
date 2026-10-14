@@ -16,6 +16,7 @@ import {
   integrationKeys,
   ideaBoardKeys,
   projectKeys,
+  tagKeys,
   ideaKeys,
   ideaSubtaskKeys,
 } from "@/lib/query-keys";
@@ -151,8 +152,9 @@ function handleWebSocketEvent(
       // The kanban range prefetch lives outside lists(); refresh it too.
       batcher.schedule(taskKeys.rangeAll());
       batcher.schedule(["tasks", "search", "infinite"]);
-      // Project task counts
+      // Project and tag task counts
       batcher.schedule(projectKeys.lists());
+      batcher.schedule(tagKeys.lists());
 
       if (event.payload && typeof event.payload === "object" && "taskId" in event.payload) {
         const { taskId } = event.payload as { taskId: string };
@@ -188,6 +190,12 @@ function handleWebSocketEvent(
     case "project:deleted":
     case "project:reordered":
       batcher.schedule(projectKeys.lists());
+      break;
+
+    case "tag:created":
+    case "tag:updated":
+    case "tag:deleted":
+      batcher.schedule(tagKeys.lists());
       break;
 
     case "data:restored":

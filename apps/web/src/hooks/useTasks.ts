@@ -252,6 +252,7 @@ export function useCreateTask() {
         completedAt: null,
         subtasksHidden: false,
         projectId: data.projectId ?? null,
+        tagIds: data.tagIds ?? [],
         seriesId: null,
         seriesInstanceNumber: null,
         timerStartedAt: null,
@@ -275,6 +276,7 @@ export function useCreateTask() {
               completed?: boolean;
               priority?: string;
               projectId?: string;
+              tagId?: string;
             }
           | undefined;
         if (!filter) return;
@@ -285,6 +287,7 @@ export function useCreateTask() {
           const wanted = filter.projectId === "none" ? null : filter.projectId;
           if (taskProject !== wanted) return;
         }
+        if (filter.tagId && !(data.tagIds ?? []).includes(filter.tagId)) return;
         // If a priority filter is set and this task doesn't match, skip.
         if (filter.priority && filter.priority !== (data.priority ?? "P2")) {
           return;
@@ -485,6 +488,15 @@ export function useUpdateTask() {
       if (variables.data.scheduledDate !== undefined) {
         queryClient.invalidateQueries({ queryKey: timeBlockKeys.lists() });
       }
+      // Tag changes move the task in or out of tag-filtered lists.
+      if (variables.data.tagIds !== undefined) {
+        queryClient.invalidateQueries({
+          queryKey: taskKeys.lists(),
+          predicate: (q) =>
+            (q.queryKey[2] as { tagId?: string } | undefined)?.tagId !== undefined,
+        });
+        queryClient.invalidateQueries({ queryKey: ["tags"] });
+      }
       // Moving between projects changes which project lists hold the task.
       if (variables.data.projectId !== undefined) {
         queryClient.invalidateQueries({
@@ -494,6 +506,8 @@ export function useUpdateTask() {
             undefined,
         });
         queryClient.invalidateQueries({ queryKey: ["projects"] });
+        // Calendar blocks carry their task, and take its project's colour.
+        queryClient.invalidateQueries({ queryKey: timeBlockKeys.lists() });
       }
       // Update with actual server data. We deliberately do not invalidate
       // lists here — the optimistic update + this setQueryData already
@@ -655,6 +669,7 @@ export function useDeleteTask() {
                 estimatedMins: task.estimatedMins ?? undefined,
                 priority: task.priority,
                 projectId: task.projectId ?? undefined,
+                tagIds: task.tagIds,
               });
               holder.id = recreated.id;
               invalidateTaskCaches(queryClient);

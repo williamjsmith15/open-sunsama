@@ -3,6 +3,7 @@ import {
   matchesProjectFilter,
   type ProjectFilterValue,
 } from "@/components/projects/project-picker";
+import { matchesTagFilter, type TagFilterValue } from "@/components/tags/tag-picker";
 import {
   format,
   isToday,
@@ -50,6 +51,8 @@ interface DayColumnProps {
   searchQuery?: string;
   /** Only show tasks in this project (null = all, "none" = no project) */
   projectFilter?: ProjectFilterValue;
+  /** Only show tasks with this tag (null = all) */
+  tagFilter?: TagFilterValue;
   /** Fill the parent's width (the phone board shows one day per screen). */
   fill?: boolean;
   /** The single, wider column of the desktop Today view. */
@@ -67,6 +70,7 @@ export function DayColumn({
   sortBy = "position",
   searchQuery = "",
   projectFilter = null,
+  tagFilter = null,
   fill = false,
   wide = false,
 }: DayColumnProps) {
@@ -149,6 +153,7 @@ export function DayColumn({
   const matchesQuery = React.useCallback(
     (task: Task) => {
       if (!matchesProjectFilter(task, projectFilter)) return false;
+      if (!matchesTagFilter(task, tagFilter)) return false;
       if (!query) return true;
       const notes = task.notes?.replace(/<[^>]*>/g, " ") ?? "";
       return (
@@ -156,7 +161,7 @@ export function DayColumn({
         notes.toLowerCase().includes(query)
       );
     },
-    [query, projectFilter]
+    [query, projectFilter, tagFilter]
   );
 
   const pendingTasks = React.useMemo(() => {

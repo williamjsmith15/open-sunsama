@@ -1,5 +1,6 @@
 import * as React from "react";
 import { type ProjectFilterValue } from "@/components/projects/project-picker";
+import { type TagFilterValue } from "@/components/tags/tag-picker";
 import type { Task } from "@open-sunsama/types";
 import { SHORTCUTS, matchesShortcut, shouldIgnoreShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useKanbanDates } from "@/hooks/useKanbanDates";
@@ -75,7 +76,8 @@ export function KanbanBoard({
   const [isImportTaskOpen, setIsImportTaskOpen] = React.useState(false);
   const [sortBy, onSortChange] = useSortPreference();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [projectFilter, setProjectFilter] = useBoardProjectFilter();
+  const [projectFilter, setProjectFilter] = useStoredFilter(PROJECT_FILTER_KEY);
+  const [tagFilter, setTagFilter] = useStoredFilter(TAG_FILTER_KEY);
   const { isDragging } = useTasksDnd();
 
   // Use the kanban dates hook for date management and navigation
@@ -193,6 +195,8 @@ export function KanbanBoard({
           onSearchQueryChange={setSearchQuery}
           projectFilter={projectFilter}
           onProjectFilterChange={setProjectFilter}
+          tagFilter={tagFilter}
+          onTagFilterChange={setTagFilter}
         />
 
         {isDay ? (
@@ -207,6 +211,7 @@ export function KanbanBoard({
               sortBy={sortBy}
               searchQuery={searchQuery}
               projectFilter={projectFilter}
+              tagFilter={tagFilter}
               wide
             />
             {dayAside && (
@@ -247,6 +252,7 @@ export function KanbanBoard({
                     sortBy={sortBy}
                     searchQuery={searchQuery}
                     projectFilter={projectFilter}
+                    tagFilter={tagFilter}
                   />
                 </div>
               );
@@ -278,27 +284,30 @@ export function KanbanBoard({
 }
 
 const PROJECT_FILTER_KEY = "open-sunsama-board-project-filter";
+const TAG_FILTER_KEY = "open-sunsama-board-tag-filter";
 
-/** The board's project filter, remembered per browser. */
-function useBoardProjectFilter(): [
-  ProjectFilterValue,
-  (value: ProjectFilterValue) => void,
-] {
-  const [value, setValue] = React.useState<ProjectFilterValue>(() => {
+/** A board filter (project or tag), remembered per browser. */
+function useStoredFilter(
+  key: string
+): [ProjectFilterValue | TagFilterValue, (value: string | null) => void] {
+  const [value, setValue] = React.useState<string | null>(() => {
     try {
-      return localStorage.getItem(PROJECT_FILTER_KEY);
+      return localStorage.getItem(key);
     } catch {
       return null;
     }
   });
-  const update = React.useCallback((next: ProjectFilterValue) => {
-    setValue(next);
-    try {
-      if (next === null) localStorage.removeItem(PROJECT_FILTER_KEY);
-      else localStorage.setItem(PROJECT_FILTER_KEY, next);
-    } catch {
-      // filter just isn't remembered
-    }
-  }, []);
+  const update = React.useCallback(
+    (next: string | null) => {
+      setValue(next);
+      try {
+        if (next === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, next);
+      } catch {
+        // filter just isn't remembered
+      }
+    },
+    [key]
+  );
   return [value, update];
 }

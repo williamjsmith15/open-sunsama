@@ -31,6 +31,11 @@ import { useDeleteProject, useProjects, useUpdateProject } from "@/hooks/useProj
 import { useCompleteTask, useCreateTask, useTasks } from "@/hooks/useTasks";
 import { TaskModal } from "@/components/kanban/task-modal.lazy";
 import { TaskRow } from "@/components/tasks/task-row";
+import {
+  TagFilter,
+  matchesTagFilter,
+  type TagFilterValue,
+} from "@/components/tags/tag-picker";
 import { BoardIcon } from "@/components/ideas/board-icon";
 import {
   NO_PROJECT,
@@ -305,6 +310,7 @@ export default function ProjectsPage() {
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const completeTask = useCompleteTask();
+  const [tagFilter, setTagFilter] = React.useState<TagFilterValue>(null);
 
   React.useEffect(() => {
     if (projectParam) setSelected(projectParam);
@@ -330,7 +336,10 @@ export default function ProjectsPage() {
   const { data: tasks = [], isLoading: tasksLoading } = useTasks(
     selected ? { projectId: selected, limit: 1000 } : undefined
   );
-  const sections = React.useMemo(() => groupProjectTasks(tasks), [tasks]);
+  const sections = React.useMemo(
+    () => groupProjectTasks(tasks.filter((t) => matchesTagFilter(t, tagFilter))),
+    [tasks, tagFilter]
+  );
   const project =
     selected && selected !== NO_PROJECT
       ? projects?.find((p) => p.id === selected)
@@ -434,7 +443,12 @@ export default function ProjectsPage() {
             )}
 
             <div className="mt-5">
-              <QuickAdd projectId={project?.id ?? null} />
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <QuickAdd projectId={project?.id ?? null} />
+                </div>
+                <TagFilter value={tagFilter} onChange={setTagFilter} />
+              </div>
               {tasksLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

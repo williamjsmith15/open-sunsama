@@ -39,6 +39,7 @@ import {
   RoutinesSettings,
   IntegrationsSettings,
   BackupSettings,
+  TagSettings,
 } from "@/components/settings";
 
 type SettingsTab =
@@ -79,7 +80,12 @@ function SettingsContent({ tab }: { tab: SettingsTab }) {
     case "appearance":
       return <AppearanceSettings />;
     case "tasks":
-      return <TaskSettings />;
+      return (
+        <div className="space-y-6">
+          <TaskSettings />
+          <TagSettings />
+        </div>
+      );
     case "routines":
       return <RoutinesSettings />;
     case "calendars":

@@ -29,6 +29,7 @@ import {
   ProjectFilter,
   type ProjectFilterValue,
 } from "@/components/projects/project-picker";
+import { TagFilter, type TagFilterValue } from "@/components/tags/tag-picker";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileTasksView } from "@/components/mobile";
 
@@ -113,6 +114,7 @@ function TasksListPageDesktop() {
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("active");
   const [projectFilter, setProjectFilter] = React.useState<ProjectFilterValue>(null);
+  const [tagFilter, setTagFilter] = React.useState<TagFilterValue>(null);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
@@ -154,6 +156,7 @@ function TasksListPageDesktop() {
     query: deferredQuery,
     status: statusFilter,
     projectId: projectFilter ?? undefined,
+    tagId: tagFilter ?? undefined,
     limit: 100,
   });
 
@@ -389,6 +392,7 @@ function TasksListPageDesktop() {
           </div>
 
           <ProjectFilter value={projectFilter} onChange={setProjectFilter} />
+          <TagFilter value={tagFilter} onChange={setTagFilter} />
 
           <div className="flex-1" />
 

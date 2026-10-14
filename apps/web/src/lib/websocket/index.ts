@@ -42,6 +42,10 @@ export type WebSocketEventType =
   | "project:updated"
   | "project:deleted"
   | "project:reordered"
+  // Tag events
+  | "tag:created"
+  | "tag:updated"
+  | "tag:deleted"
   | "connected";
 
 export interface WebSocketEvent<T = unknown> {
