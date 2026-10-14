@@ -20,6 +20,8 @@ import { EDIT_ESTIMATE_EVENT } from "@/components/task-shortcuts-handler";
 import { PRIORITY_META } from "@/components/ui/priority-badge";
 import { PriorityMenu } from "./priority-menu";
 import { TaskSourceChips } from "./task-source-chip";
+import { ProjectChip } from "@/components/projects/project-picker";
+import { useProjectMap } from "@/hooks/useProjects";
 
 interface TaskCardContentProps {
   task: Task;
@@ -71,6 +73,7 @@ export function TaskCardContent({
   subtasksHidden,
   onUpdateTask,
 }: TaskCardContentProps) {
+  const projectMap = useProjectMap();
   const { setHoveredTask } = useHoveredTask();
 
   // "E" while hovering a card opens its planned-time picker.
@@ -202,7 +205,9 @@ export function TaskCardContent({
   );
 
   const hasSubtasks = !!subtasks?.length && !subtasksHidden;
-  const showMeta = !!formattedTime || task.priority !== "P2" || !!tag;
+  const project = task.projectId ? projectMap.get(task.projectId) : undefined;
+  const showMeta =
+    !!formattedTime || task.priority !== "P2" || !!tag || !!project;
 
   return (
     <div
@@ -280,7 +285,8 @@ export function TaskCardContent({
             </span>
           )}
           {priorityChip}
-          {tag && (
+          {project && <ProjectChip project={project} className="ml-auto" />}
+          {tag && !project && (
             <span
               className="ml-auto text-[11px]"
               style={{ color: tagColor || "hsl(var(--muted-foreground))" }}

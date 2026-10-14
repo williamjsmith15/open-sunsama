@@ -6,6 +6,8 @@ export interface InfiniteSearchTasksParams {
   query?: string;
   status?: "all" | "active" | "completed";
   priority?: TaskPriority;
+  /** A project's tasks, or "none" for tasks without a project */
+  projectId?: string;
   limit?: number;
 }
 
@@ -14,10 +16,10 @@ export interface InfiniteSearchTasksParams {
  * Uses server-side pagination and filtering
  */
 export function useInfiniteSearchTasks(params: InfiniteSearchTasksParams) {
-  const { query = "", status = "all", priority, limit = 50 } = params;
+  const { query = "", status = "all", priority, projectId, limit = 50 } = params;
 
   return useInfiniteQuery({
-    queryKey: ["tasks", "search", "infinite", { query, status, priority, limit }],
+    queryKey: ["tasks", "search", "infinite", { query, status, priority, projectId, limit }],
     queryFn: async ({ pageParam = 1 }) => {
       const api = getApi();
 
@@ -38,6 +40,9 @@ export function useInfiniteSearchTasks(params: InfiniteSearchTasksParams) {
       // Priority filter
       if (priority) {
         filters.priority = priority;
+      }
+      if (projectId) {
+        filters.projectId = projectId;
       }
 
       const response = await api.tasks.list(filters);

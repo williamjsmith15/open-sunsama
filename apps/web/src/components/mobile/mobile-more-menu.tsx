@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Search,
   Smartphone,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -159,6 +160,12 @@ export function MobileMoreMenu({ onLogout }: MobileMoreMenuProps) {
           icon: Inbox,
           label: "Backlog",
           href: "/app/tasks?backlog=1",
+        },
+        {
+          id: "projects",
+          icon: FolderKanban,
+          label: "Projects",
+          href: "/app/projects",
         },
         ...(showInstall
           ? [

@@ -251,6 +251,7 @@ export function useCreateTask() {
         position: Number.MAX_SAFE_INTEGER,
         completedAt: null,
         subtasksHidden: false,
+        projectId: data.projectId ?? null,
         seriesId: null,
         seriesInstanceNumber: null,
         timerStartedAt: null,
@@ -273,10 +274,17 @@ export function useCreateTask() {
               backlog?: boolean;
               completed?: boolean;
               priority?: string;
+              projectId?: string;
             }
           | undefined;
         if (!filter) return;
         if (filter.completed === true) return;
+        // Project lists only take tasks in that project ("none" = no project).
+        if (filter.projectId !== undefined) {
+          const taskProject = data.projectId ?? null;
+          const wanted = filter.projectId === "none" ? null : filter.projectId;
+          if (taskProject !== wanted) return;
+        }
         // If a priority filter is set and this task doesn't match, skip.
         if (filter.priority && filter.priority !== (data.priority ?? "P2")) {
           return;
@@ -477,6 +485,16 @@ export function useUpdateTask() {
       if (variables.data.scheduledDate !== undefined) {
         queryClient.invalidateQueries({ queryKey: timeBlockKeys.lists() });
       }
+      // Moving between projects changes which project lists hold the task.
+      if (variables.data.projectId !== undefined) {
+        queryClient.invalidateQueries({
+          queryKey: taskKeys.lists(),
+          predicate: (q) =>
+            (q.queryKey[2] as { projectId?: string } | undefined)?.projectId !==
+            undefined,
+        });
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
+      }
       // Update with actual server data. We deliberately do not invalidate
       // lists here — the optimistic update + this setQueryData already
       // produces the canonical state, and the WebSocket echo will reconcile
@@ -636,6 +654,7 @@ export function useDeleteTask() {
                 scheduledDate: task.scheduledDate ?? undefined,
                 estimatedMins: task.estimatedMins ?? undefined,
                 priority: task.priority,
+                projectId: task.projectId ?? undefined,
               });
               holder.id = recreated.id;
               invalidateTaskCaches(queryClient);

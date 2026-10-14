@@ -1,5 +1,9 @@
 import * as React from "react";
 import {
+  matchesProjectFilter,
+  type ProjectFilterValue,
+} from "@/components/projects/project-picker";
+import {
   format,
   isToday,
   isTomorrow,
@@ -44,6 +48,8 @@ interface DayColumnProps {
   sortBy?: SortOption;
   /** Case-insensitive substring filter on title + notes; "" shows everything. */
   searchQuery?: string;
+  /** Only show tasks in this project (null = all, "none" = no project) */
+  projectFilter?: ProjectFilterValue;
   /** Fill the parent's width (the phone board shows one day per screen). */
   fill?: boolean;
   /** The single, wider column of the desktop Today view. */
@@ -60,6 +66,7 @@ export function DayColumn({
   onDateClick,
   sortBy = "position",
   searchQuery = "",
+  projectFilter = null,
   fill = false,
   wide = false,
 }: DayColumnProps) {
@@ -141,6 +148,7 @@ export function DayColumn({
   const query = searchQuery.trim().toLowerCase();
   const matchesQuery = React.useCallback(
     (task: Task) => {
+      if (!matchesProjectFilter(task, projectFilter)) return false;
       if (!query) return true;
       const notes = task.notes?.replace(/<[^>]*>/g, " ") ?? "";
       return (
@@ -148,7 +156,7 @@ export function DayColumn({
         notes.toLowerCase().includes(query)
       );
     },
-    [query]
+    [query, projectFilter]
   );
 
   const pendingTasks = React.useMemo(() => {

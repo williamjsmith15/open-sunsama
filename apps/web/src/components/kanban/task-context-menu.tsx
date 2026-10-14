@@ -14,6 +14,8 @@ import {
   Archive,
   Repeat,
   Flag,
+  FolderOpen,
+  X,
 } from "lucide-react";
 import type { Task, CreateTaskSeriesInput, TaskPriority } from "@open-sunsama/types";
 import {
@@ -42,6 +44,8 @@ import { useCreateTaskSeries } from "@/hooks/useTaskSeries";
 import { formatShortcut, SHORTCUTS } from "@/hooks/useKeyboardShortcuts";
 import { toast } from "@/hooks/use-toast";
 import { RepeatConfigDialog } from "./repeat-config-popover";
+import { useProjects } from "@/hooks/useProjects";
+import { ProjectDot } from "@/components/projects/project-picker";
 import { cn } from "@/lib/utils";
 
 const PRIORITIES: TaskPriority[] = ["P0", "P1", "P2", "P3"];
@@ -176,6 +180,8 @@ export function TaskContextMenu({
     });
   };
 
+  const { data: projects = [] } = useProjects();
+
   const handlePriorityChange = async (priority: TaskPriority) => {
     await updateTask.mutateAsync({
       id: task.id,
@@ -185,6 +191,15 @@ export function TaskContextMenu({
     toast({
       title: "Priority updated",
       description: `"${task.title}" priority set to ${PRIORITY_LABELS[priority]}.`,
+    });
+  };
+
+  const handleProjectChange = async (projectId: string | null) => {
+    if (projectId === (task.projectId ?? null)) return;
+    await updateTask.mutateAsync({ id: task.id, data: { projectId } });
+    const name = projects.find((p) => p.id === projectId)?.name;
+    toast({
+      title: name ? `Moved to ${name}` : "Removed from project",
     });
   };
 
@@ -206,6 +221,7 @@ export function TaskContextMenu({
       priority: task.priority,
       scheduledDate: task.scheduledDate ?? undefined,
       estimatedMins: task.estimatedMins ?? undefined,
+      projectId: task.projectId ?? undefined,
     });
 
     toast({
@@ -336,6 +352,43 @@ export function TaskContextMenu({
                   <span>{PRIORITY_LABELS[priority]}</span>
                 </ContextMenuItem>
               ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+
+          {/* Project */}
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <FolderOpen className="mr-2 h-4 w-4" />
+              Project
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="max-h-80 overflow-y-auto">
+              <ContextMenuItem
+                onClick={() => handleProjectChange(null)}
+                className={cn("gap-2", !task.projectId && "bg-accent")}
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>No project</span>
+              </ContextMenuItem>
+              {projects
+                .filter(
+                  (p) =>
+                    p.id === task.projectId ||
+                    p.status === "active" ||
+                    p.status === "on_hold"
+                )
+                .map((project) => (
+                  <ContextMenuItem
+                    key={project.id}
+                    onClick={() => handleProjectChange(project.id)}
+                    className={cn(
+                      "gap-2",
+                      task.projectId === project.id && "bg-accent"
+                    )}
+                  >
+                    <ProjectDot color={project.color} />
+                    <span className="max-w-[14rem] truncate">{project.name}</span>
+                  </ContextMenuItem>
+                ))}
             </ContextMenuSubContent>
           </ContextMenuSub>
 

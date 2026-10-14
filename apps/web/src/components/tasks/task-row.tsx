@@ -12,20 +12,27 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useUpdateTask } from "@/hooks/useTasks";
 import { EDIT_ESTIMATE_EVENT } from "@/components/task-shortcuts-handler";
 import { WithShortcut } from "@/components/ui/with-shortcut";
+import { ProjectChip } from "@/components/projects/project-picker";
+import { useProjectMap } from "@/hooks/useProjects";
 
 export interface TaskRowProps {
   task: Task;
   onSelect: () => void;
   onComplete: () => void;
+  /** Leave out the project chip, e.g. inside that project's own page */
+  hideProject?: boolean;
 }
 
 export function TaskRow({ 
   task, 
   onSelect, 
   onComplete,
+  hideProject = false,
 }: TaskRowProps) {
   const { setHoveredTask } = useHoveredTask();
   const updateTask = useUpdateTask();
+  const projectMap = useProjectMap();
+  const project = task.projectId ? projectMap.get(task.projectId) : undefined;
   const [durationOpen, setDurationOpen] = React.useState(false);
   React.useEffect(() => {
     const open = (e: Event) => {
@@ -137,6 +144,8 @@ export function TaskRow({
         >
           {task.title}
         </button>
+
+        {project && !hideProject && <ProjectChip project={project} className="shrink-0" />}
 
         {/* Subtask Progress Indicator */}
         {hasSubtasks && !showSubtasks && (

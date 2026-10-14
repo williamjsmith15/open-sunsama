@@ -1,5 +1,9 @@
 import * as React from "react";
 import {
+  ProjectFilter,
+  type ProjectFilterValue,
+} from "@/components/projects/project-picker";
+import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
@@ -75,6 +79,9 @@ interface KanbanBoardToolbarProps {
   /** Substring filter applied to task titles/notes across the day columns. */
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
+  /** Show only one project's tasks (null = all, "none" = no project). */
+  projectFilter: ProjectFilterValue;
+  onProjectFilterChange: (value: ProjectFilterValue) => void;
 }
 
 const VALID_SORT_OPTIONS: SortOption[] = ["position", "priority-desc", "priority-asc", "createdAt-desc", "createdAt-asc"];
@@ -113,6 +120,8 @@ export function KanbanBoardToolbar({
   onSortChange,
   searchQuery,
   onSearchQueryChange,
+  projectFilter,
+  onProjectFilterChange,
 }: KanbanBoardToolbarProps) {
   const { data: providers = [] } = useIntegrationProviders();
   const [goToOpen, setGoToOpen] = React.useState(false);
@@ -229,6 +238,8 @@ export function KanbanBoardToolbar({
             </WithShortcut>
           ))}
         </div>
+
+        <ProjectFilter value={projectFilter} onChange={onProjectFilterChange} />
 
         {/* Filter the visible day columns down to matching cards */}
         <ViewSearch

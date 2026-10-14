@@ -48,6 +48,8 @@ import {
   Flag,
   Gamepad2,
   Dog,
+  Folder,
+  FolderKanban,
   type LucideIcon,
 } from "lucide-react";
 
@@ -96,6 +98,8 @@ export const IDEA_ICONS: Record<string, LucideIcon> = {
   Flag,
   Gamepad2,
   Dog,
+  Folder,
+  FolderKanban,
 };
 
 /** Ordered list of icon names for the picker grid. */

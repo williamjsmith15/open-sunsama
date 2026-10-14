@@ -24,6 +24,7 @@ import {
   Play,
   Pause,
   Copy,
+  FolderOpen,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type {
@@ -75,6 +76,8 @@ import { TaskSeriesBanner } from "./task-series-banner";
 import { TaskSourceChips } from "./task-source-chip";
 import { RepeatConfigDialog } from "./repeat-config-popover";
 import { PriorityMenu } from "./priority-menu";
+import { ProjectDot, ProjectMenu } from "@/components/projects/project-picker";
+import { useProjectMap } from "@/hooks/useProjects";
 import { PriorityIcon, PRIORITY_META } from "@/components/ui/priority-badge";
 import { WithShortcut } from "@/components/ui/with-shortcut";
 import { useCreateTaskSeries } from "@/hooks/useTaskSeries";
@@ -97,7 +100,7 @@ interface TaskModalProps {
    * Opens the modal as a composer for a new task (with `task` null): the same
    * layout as editing, but fields stay local until "Add task" creates it.
    */
-  createDefaults?: { scheduledDate?: string | null };
+  createDefaults?: { scheduledDate?: string | null; projectId?: string | null };
 }
 
 export function TaskModal({
@@ -117,6 +120,8 @@ export function TaskModal({
   const [actualMins, setActualMins] = React.useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [priorityOpen, setPriorityOpen] = React.useState(false);
+  const [projectOpen, setProjectOpen] = React.useState(false);
+  const projectMap = useProjectMap();
 
   // Grow the title field to fit long titles.
   React.useLayoutEffect(() => {
@@ -130,6 +135,7 @@ export function TaskModal({
   // Composer-only state: everything a new task carries before it exists.
   const [draftPriority, setDraftPriority] = React.useState<TaskPriority>("P2");
   const [draftDate, setDraftDate] = React.useState<string | null>(null);
+  const [draftProjectId, setDraftProjectId] = React.useState<string | null>(null);
   const [draftSubtasks, setDraftSubtasks] = React.useState<DraftSubtask[]>([]);
   const { addPosition, setAddPosition } = useAddTaskPosition();
   const placeNewTask = usePlaceNewTask(draftDate);
@@ -144,6 +150,7 @@ export function TaskModal({
     setPlannedMins(null);
     setDraftPriority("P2");
     setDraftDate(createDefaults?.scheduledDate ?? null);
+    setDraftProjectId(createDefaults?.projectId ?? null);
     setDraftSubtasks([]);
   }, [open, isCompose]);
 
@@ -224,6 +231,12 @@ export function TaskModal({
       id: task.id,
       data: { priority: newPriority },
     });
+  };
+
+  const handleProjectChange = async (projectId: string | null) => {
+    if (isCompose) setDraftProjectId(projectId);
+    if (!task) return;
+    await updateTask.mutateAsync({ id: task.id, data: { projectId } });
   };
 
   usePriorityShortcut(open, (priority) => {
@@ -481,6 +494,7 @@ export function TaskModal({
       priority: task.priority,
       scheduledDate: task.scheduledDate ?? undefined,
       estimatedMins: task.estimatedMins ?? undefined,
+      projectId: task.projectId ?? undefined,
     });
     toast({ title: "Task duplicated" });
   };
@@ -502,6 +516,7 @@ export function TaskModal({
         scheduledDate: draftDate ?? undefined,
         estimatedMins: plannedMins ?? undefined,
         priority: draftPriority,
+        projectId: draftProjectId ?? undefined,
       });
       // In order, so the checklist keeps the order it was typed in.
       for (const [position, st] of draftSubtasks.entries()) {
@@ -535,6 +550,7 @@ export function TaskModal({
           notes: description,
           priority: draftPriority,
           scheduledDate: draftDate,
+          projectId: draftProjectId,
           estimatedMins: plannedMins,
           actualMins: null,
           completedAt: null,
@@ -571,6 +587,10 @@ export function TaskModal({
   const fieldLabel =
     "text-[10px] font-medium uppercase leading-3 tracking-wider text-muted-foreground/60";
   const fieldValue = "flex items-center gap-1.5 text-sm leading-5 text-muted-foreground";
+
+  const currentProject = renderTask.projectId
+    ? projectMap.get(renderTask.projectId)
+    : undefined;
 
   const scheduled = renderTask.scheduledDate
     ? parse(renderTask.scheduledDate, "yyyy-MM-dd", new Date())
@@ -631,6 +651,40 @@ export function TaskModal({
               onChange={(p) => {
                 void handlePriorityChange(p);
                 setPriorityOpen(false);
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+        <Popover open={projectOpen} onOpenChange={setProjectOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={fieldButton}
+              aria-label={`Project: ${currentProject?.name ?? "None"}`}
+            >
+              <span className={fieldValue}>
+                {currentProject ? (
+                  <>
+                    <ProjectDot color={currentProject.color} />
+                    <span className="max-w-[12rem] truncate text-foreground">
+                      {currentProject.name}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    <span>Project</span>
+                  </>
+                )}
+              </span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <ProjectMenu
+              value={renderTask.projectId ?? null}
+              onChange={(projectId) => {
+                void handleProjectChange(projectId);
+                setProjectOpen(false);
               }}
             />
           </PopoverContent>

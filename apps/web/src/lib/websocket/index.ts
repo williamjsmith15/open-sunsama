@@ -37,6 +37,11 @@ export type WebSocketEventType =
   | "idea:deleted"
   | "idea:reordered"
   | "data:restored"
+  // Project events
+  | "project:created"
+  | "project:updated"
+  | "project:deleted"
+  | "project:reordered"
   | "connected";
 
 export interface WebSocketEvent<T = unknown> {

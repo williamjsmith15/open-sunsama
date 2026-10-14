@@ -62,6 +62,24 @@ async function seed(token) {
   const subtask = (taskId, title) =>
     must("POST", `/tasks/${taskId}/subtasks`, { title }, token);
 
+  const home = await must("POST", "/projects", {
+    name: "Home renovation",
+    color: "#F59E0B",
+    icon: "Home",
+    description: "Kitchen and hallway, done before the holidays.",
+    targetDate: day(45),
+  }, token);
+  const launch = await must("POST", "/projects", {
+    name: "Side project launch",
+    color: "#22C55E",
+    icon: "Rocket",
+  }, token);
+  await task({ title: "Get three quotes for the kitchen", scheduledDate: day(0), priority: "P1", projectId: home.id });
+  await task({ title: "Pick hallway paint", scheduledDate: day(2), projectId: home.id });
+  await task({ title: "Order worktop samples", projectId: home.id });
+  await task({ title: "Write the launch post", scheduledDate: day(1), estimatedMins: 90, projectId: launch.id });
+  await task({ title: "Set up a landing page", priority: "P1", projectId: launch.id });
+
   const review = await task({
     title: "Review the backup export",
     scheduledDate: day(0),

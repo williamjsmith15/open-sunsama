@@ -25,6 +25,10 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { TaskRow } from "@/components/tasks/task-row";
+import {
+  ProjectFilter,
+  type ProjectFilterValue,
+} from "@/components/projects/project-picker";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileTasksView } from "@/components/mobile";
 
@@ -108,6 +112,7 @@ function TasksListPageDesktop() {
   const { data: providers = [] } = useIntegrationProviders();
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("active");
+  const [projectFilter, setProjectFilter] = React.useState<ProjectFilterValue>(null);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
@@ -148,6 +153,7 @@ function TasksListPageDesktop() {
   const { data, isLoading, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteSearchTasks({
     query: deferredQuery,
     status: statusFilter,
+    projectId: projectFilter ?? undefined,
     limit: 100,
   });
 
@@ -381,6 +387,8 @@ function TasksListPageDesktop() {
               </button>
             ))}
           </div>
+
+          <ProjectFilter value={projectFilter} onChange={setProjectFilter} />
 
           <div className="flex-1" />
 
