@@ -71,6 +71,9 @@ export interface Task {
    */
   subtasksHidden: boolean;
 
+  /** Project this task belongs to; null when unassigned */
+  projectId: string | null;
+
   /**
    * ID of the task series this instance belongs to.
    * Null for regular (non-recurring) tasks.
@@ -133,6 +136,9 @@ export interface CreateTaskInput {
 
   /** Priority level (P0=Critical, P1=High, P2=Medium, P3=Low) */
   priority?: TaskPriority;
+
+  /** Project to put the task in */
+  projectId?: string | null;
 }
 
 /**
@@ -173,6 +179,9 @@ export interface UpdateTaskInput {
 
   /** Whether to hide subtasks in the task card view */
   subtasksHidden?: boolean;
+
+  /** Move to a project (null removes it from its project) */
+  projectId?: string | null;
 }
 
 /**
@@ -252,6 +261,9 @@ export interface TaskFilterInput {
 
   /** Filter by priority level */
   priority?: TaskPriority;
+
+  /** A project's tasks, or "none" for tasks without a project */
+  projectId?: string;
 
   /**
    * If true, the server inlines each task's subtasks into the response as

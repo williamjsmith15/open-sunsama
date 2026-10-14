@@ -39,6 +39,7 @@ import {
   stopSubtaskTimers,
 } from "../lib/timer-service.js";
 import { moveBlocksWithTasks } from "../services/task-blocks.js";
+import { assertProjectOwned } from "./projects.js";
 import { format, subDays } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { getPgBoss, JOBS } from "../lib/pgboss.js";
@@ -71,6 +72,9 @@ tasksRouter.get(
     else if (filters.backlog === "false")
       conditions.push(isNotNull(tasks.scheduledDate));
     if (filters.priority) conditions.push(eq(tasks.priority, filters.priority));
+    if (filters.projectId === "none") conditions.push(isNull(tasks.projectId));
+    else if (filters.projectId)
+      conditions.push(eq(tasks.projectId, filters.projectId));
     if (filters.search) {
       // Every whitespace-separated term must appear in the title or the notes,
       // so "web analytics" matches a title where the words aren't adjacent.
@@ -196,6 +200,7 @@ tasksRouter.post(
     const userId = c.get("userId");
     const data = c.req.valid("json");
     const db = getDb();
+    if (data.projectId) await assertProjectOwned(userId, data.projectId);
 
     let position = data.position;
     if (position === undefined) {
@@ -224,6 +229,7 @@ tasksRouter.post(
         estimatedMins: data.estimatedMins ?? null,
         priority: data.priority ?? "P2",
         position,
+        projectId: data.projectId ?? null,
       })
       .returning();
 
@@ -352,6 +358,7 @@ tasksRouter.patch(
         .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
         .limit(1);
       if (!existing) throw new NotFoundError("Task", id);
+      if (updates.projectId) await assertProjectOwned(userId, updates.projectId);
 
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
       if (updates.title !== undefined) updateData.title = updates.title;
@@ -368,6 +375,7 @@ tasksRouter.patch(
       if (updates.position !== undefined) updateData.position = updates.position;
       if (updates.subtasksHidden !== undefined)
         updateData.subtasksHidden = updates.subtasksHidden;
+      if (updates.projectId !== undefined) updateData.projectId = updates.projectId;
       let timerStopped: number | null = null;
       if (updates.actualMins !== undefined) {
         // A typed actual time replaces what the timer logged; a running timer

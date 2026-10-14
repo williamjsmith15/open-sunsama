@@ -24,6 +24,7 @@ import {
   ideaColumns,
   ideas,
   ideaSubtasks,
+  projects,
 } from "@open-sunsama/database";
 
 export const BACKUP_FORMAT = "open-sunsama-backup";
@@ -43,6 +44,7 @@ export interface BackupFile {
 
 /** Insert order: every table comes after the tables it references. */
 export const BACKUP_TABLES = [
+  { key: "projects", table: projects },
   { key: "taskSeries", table: taskSeries },
   { key: "tasks", table: tasks },
   { key: "subtasks", table: subtasks },
@@ -108,7 +110,11 @@ export function sanitizeBackupData(
   }
 
   const seriesIds = ids(data.taskSeries);
+  const projectIds = ids(data.projects);
   for (const task of data.tasks) {
+    if (task.projectId && !projectIds.has(task.projectId as string)) {
+      task.projectId = null;
+    }
     if (task.seriesId && !seriesIds.has(task.seriesId as string)) {
       task.seriesId = null;
       task.seriesInstanceNumber = null;
@@ -203,6 +209,7 @@ export async function exportUserData(
     boardRows,
     columnRows,
     ideaRows,
+    projectRows,
   ] = await Promise.all([
     db.select().from(taskSeries).where(eq(taskSeries.userId, userId)),
     db.select().from(tasks).where(eq(tasks.userId, userId)),
@@ -212,6 +219,7 @@ export async function exportUserData(
     db.select().from(ideaBoards).where(eq(ideaBoards.userId, userId)),
     db.select().from(ideaColumns).where(eq(ideaColumns.userId, userId)),
     db.select().from(ideas).where(eq(ideas.userId, userId)),
+    db.select().from(projects).where(eq(projects.userId, userId)),
   ]);
 
   // Child tables without a user_id column are reached through their parent.
@@ -229,6 +237,7 @@ export async function exportUserData(
   ]);
 
   const data: Record<BackupTableKey, Row[]> = {
+    projects: projectRows,
     taskSeries: seriesRows,
     tasks: taskRows,
     subtasks: subtaskRows,
@@ -287,6 +296,7 @@ export async function restoreUserData(
     await tx.delete(subtasks).where(inArray(subtasks.taskId, userTaskIds));
     await tx.delete(tasks).where(eq(tasks.userId, userId));
     await tx.delete(taskSeries).where(eq(taskSeries.userId, userId));
+    await tx.delete(projects).where(eq(projects.userId, userId));
 
     for (const { key, table } of BACKUP_TABLES) {
       const rows = data[key].map((row) => toInsertRow(table, row, userId));

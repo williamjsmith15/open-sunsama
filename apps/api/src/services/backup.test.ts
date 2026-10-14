@@ -17,6 +17,7 @@ describe("backup", () => {
   it("lists every table after the tables it references", () => {
     const order = BACKUP_TABLES.map((t) => t.key);
     expect(order.indexOf("taskSeries")).toBeLessThan(order.indexOf("tasks"));
+    expect(order.indexOf("projects")).toBeLessThan(order.indexOf("tasks"));
     expect(order.indexOf("tasks")).toBeLessThan(order.indexOf("subtasks"));
     expect(order.indexOf("tasks")).toBeLessThan(order.indexOf("ideas"));
     expect(order.indexOf("ideaColumns")).toBeLessThan(order.indexOf("ideas"));
@@ -39,8 +40,10 @@ describe("backup", () => {
         tasks: [
           { id: T1, title: "a", seriesId: MISSING, seriesInstanceNumber: 3, timerStartedAt: "2026-01-01T00:00:00Z" },
           { id: T1, title: "duplicate" },
-          { id: T2, title: "b" },
+          { id: T2, title: "b", projectId: "p1" },
+          { id: "t3", title: "c", projectId: MISSING },
         ],
+        projects: [{ id: "p1", name: "Project" }],
         subtasks: [
           { id: "s1", taskId: T1 },
           { id: "s2", taskId: MISSING },
@@ -61,7 +64,9 @@ describe("backup", () => {
       new Set()
     );
 
-    expect(data.tasks.map((t) => t.title)).toEqual(["a", "b"]);
+    expect(data.tasks.map((t) => t.title)).toEqual(["a", "b", "c"]);
+    expect(data.tasks[1]!.projectId).toBe("p1");
+    expect(data.tasks[2]!.projectId).toBeNull();
     expect(data.tasks[0]).toMatchObject({ seriesId: null, seriesInstanceNumber: null, timerStartedAt: null });
     expect(data.subtasks.map((s) => s.id)).toEqual(["s1"]);
     expect(data.timeBlocks[0]!.taskId).toBeNull();

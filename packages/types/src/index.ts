@@ -198,3 +198,11 @@ export type {
   UpdateIdeaSubtaskInput,
   ReorderIdeaSubtasksInput,
 } from "./idea.js";
+
+// Project types
+export type {
+  Project,
+  ProjectStatus,
+  CreateProjectInput,
+  UpdateProjectInput,
+} from "./project.js";

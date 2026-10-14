@@ -18,6 +18,7 @@ import { timeBlocks } from "./time-blocks";
 import { attachments } from "./attachments";
 import { taskSeries } from "./task-series";
 import { taskExternalLinks } from "./task-external-links";
+import { projects } from "./projects";
 
 export const tasks = pgTable(
   "tasks",
@@ -35,6 +36,10 @@ export const tasks = pgTable(
     completedAt: timestamp("completed_at"),
     position: integer("position").notNull().default(0),
     subtasksHidden: boolean("subtasks_hidden").notNull().default(false),
+    /** Project this task belongs to; null when unassigned. */
+    projectId: uuid("project_id").references(() => projects.id, {
+      onDelete: "set null",
+    }),
 
     // Recurring task fields
     /**
@@ -76,6 +81,10 @@ export const tasks = pgTable(
     uniqueIndex("tasks_series_date_unique_idx")
       .on(table.seriesId, table.scheduledDate)
       .where(sql`${table.seriesId} IS NOT NULL`),
+    // Project page: a user's tasks in one project
+    index("tasks_user_project_idx")
+      .on(table.userId, table.projectId)
+      .where(sql`${table.projectId} IS NOT NULL`),
     // Partial index for quickly finding the active timer per user
     index("tasks_active_timer_idx")
       .on(table.userId)
@@ -97,6 +106,10 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   series: one(taskSeries, {
     fields: [tasks.seriesId],
     references: [taskSeries.id],
+  }),
+  project: one(projects, {
+    fields: [tasks.projectId],
+    references: [projects.id],
   }),
 }));
 

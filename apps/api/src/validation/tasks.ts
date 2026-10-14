@@ -26,6 +26,7 @@ export const createTaskSchema = z.object({
   estimatedMins: z.number().int().positive().max(1440).optional().nullable(),
   priority: prioritySchema.optional(),
   position: z.number().int().nonnegative().optional(),
+  projectId: uuidSchema.optional().nullable(),
 });
 
 /**
@@ -41,6 +42,7 @@ export const updateTaskSchema = z.object({
   completedAt: z.iso.datetime().optional().nullable(),
   position: z.number().int().nonnegative().optional(),
   subtasksHidden: z.boolean().optional(),
+  projectId: uuidSchema.optional().nullable(),
 });
 
 /**
@@ -59,6 +61,8 @@ export const taskFilterSchema = z.object({
   completed: z.enum(['true', 'false']).optional(),
   backlog: z.enum(['true', 'false']).optional(),
   priority: prioritySchema.optional(),
+  /** A project's tasks, or "none" for tasks without a project */
+  projectId: z.union([uuidSchema, z.literal('none')]).optional(),
   sortBy: sortBySchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
   // Must stay >= RANGE_FETCH_LIMIT in apps/web/src/hooks/useKanbanRangePrefetch.ts,

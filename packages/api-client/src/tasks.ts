@@ -177,6 +177,8 @@ function filtersToSearchParams(
     backlog: filters.backlog !== undefined ? String(filters.backlog) : undefined,
     // Priority filter (P0, P1, P2, P3)
     priority: filters.priority,
+    // A project's tasks, or "none" for tasks without a project
+    projectId: filters.projectId,
     // Sort by field
     sortBy: filters.sortBy,
     // Limit results

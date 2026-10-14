@@ -255,5 +255,12 @@ export type {
   UpdateIdeaSubtask,
 } from "./idea-subtasks";
 
+export {
+  projects,
+  projectsRelations,
+  PROJECT_STATUSES,
+} from "./projects";
+export type { Project, NewProject, ProjectStatus } from "./projects";
+
 // Re-export relation helpers for query building
 export { relations } from "drizzle-orm";
