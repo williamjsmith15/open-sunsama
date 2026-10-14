@@ -26,6 +26,11 @@ export function useCreateTimeBlock() {
       trackGoal("create_time_block");
       // Invalidate and refetch time block lists
       queryClient.invalidateQueries({ queryKey: timeBlockKeys.lists() });
+      // A second block for a task (or subtask) re-plans it on the server.
+      if (newTimeBlock.taskId) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.all });
+        queryClient.invalidateQueries({ queryKey: subtaskKeys.all });
+      }
 
       // Add the new time block to the cache
       queryClient.setQueryData(
@@ -110,6 +115,9 @@ export function useDeleteTimeBlock() {
 
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: timeBlockKeys.lists() });
+      // Removing one of several blocks re-plans its task on the server.
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: subtaskKeys.all });
 
       toast({
         title: "Time block deleted",

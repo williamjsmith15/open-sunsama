@@ -130,3 +130,24 @@ export async function syncEstimateFromBlocks(
     .returning(estimateFields);
   return task ?? null;
 }
+
+/** How many blocks a task has of its own (not its subtasks'), or a subtask has. */
+export async function countBlocks(
+  userId: string,
+  block: { taskId: string; subtaskId: string | null },
+  db: TimerDb = getDb()
+): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(timeBlocks)
+    .where(
+      block.subtaskId
+        ? and(eq(timeBlocks.userId, userId), eq(timeBlocks.subtaskId, block.subtaskId))
+        : and(
+            eq(timeBlocks.userId, userId),
+            eq(timeBlocks.taskId, block.taskId),
+            isNull(timeBlocks.subtaskId)
+          )
+    );
+  return row?.n ?? 0;
+}

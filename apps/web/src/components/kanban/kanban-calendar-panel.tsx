@@ -1,4 +1,6 @@
 import { useTasksDnd } from "@/lib/dnd/tasks-dnd-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { taskDropMins } from "@/lib/task-drop-mins";
 import { useBlockColor } from "@/hooks/useProjects";
 import type { CalendarCreateAnchor } from "@/hooks/useDragToCreate";
 import * as React from "react";
@@ -245,6 +247,7 @@ export function KanbanCalendarPanel({
     end: Date;
   } | null>(null);
   const { pointerY } = useTasksDnd();
+  const queryClient = useQueryClient();
   const cardDragActive = React.useRef(false);
   const cardDropEndedAt = React.useRef(0);
   useDndMonitor({
@@ -261,11 +264,10 @@ export function KanbanCalendarPanel({
         return;
       }
       const start = timeAt(y);
-      setCardPreview({
-        title: item.title,
-        start,
-        end: addMinutes(start, item.estimatedMins ?? DEFAULT_DROP_MINS),
-      });
+      const mins = dragged?.subtask
+        ? dragged.subtask.estimatedMins ?? DEFAULT_DROP_MINS
+        : taskDropMins(queryClient, dragged!.task!, DEFAULT_DROP_MINS);
+      setCardPreview({ title: item.title, start, end: addMinutes(start, mins) });
     },
     onDragEnd: () => { cardDragActive.current = false; cardDropEndedAt.current = Date.now(); setCardPreview(null); },
     onDragCancel: () => { cardDragActive.current = false; cardDropEndedAt.current = Date.now(); setCardPreview(null); },

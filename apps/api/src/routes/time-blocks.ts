@@ -9,7 +9,7 @@ import { getDb, eq, and, asc, timeBlocks, tasks, subtasks, users, sql } from '@o
 import { NotFoundError, ValidationError, uuidSchema } from '@open-sunsama/utils';
 import { auth, requireScopes, type AuthVariables } from '../middleware/auth.js';
 import { calculateCascadeShifts } from '../services/time-block-cascade.js';
-import { syncEstimateFromBlocks } from '../services/task-blocks.js';
+import { countBlocks, syncEstimateFromBlocks } from '../services/task-blocks.js';
 import {
   createTimeBlockSchema, updateTimeBlockSchema, timeBlockFilterSchema, calculateDuration,
   quickScheduleSchema, calculateEndTime, cascadeResizeSchema, autoScheduleSchema,
@@ -178,6 +178,7 @@ timeBlocksRouter.post('/', requireScopes('time-blocks:write'), zValidator('json'
     userId, taskId: data.taskId ?? null, subtaskId: data.subtaskId ?? null, title: data.title, description: data.description ?? null,
     date: data.date, startTime: data.startTime, endTime: data.endTime, durationMins, color: data.color, position,
   }).returning();
+  if (newTimeBlock) await syncAfterBlockCountChange(userId, newTimeBlock, 2);
 
   let task = null;
   if (newTimeBlock?.taskId) {
@@ -229,6 +230,7 @@ timeBlocksRouter.post('/quick-schedule', requireScopes('time-blocks:write'), zVa
     color: data.color ?? '#3B82F6',
     position,
   }).returning();
+  if (newTimeBlock) await syncAfterBlockCountChange(userId, newTimeBlock, 2);
 
   // Publish realtime event (fire and forget)
   if (newTimeBlock) {
@@ -295,6 +297,7 @@ timeBlocksRouter.post('/auto-schedule', requireScopes('time-blocks:write'), zVal
     color: '#3B82F6',
     position,
   }).returning();
+  if (newTimeBlock) await syncAfterBlockCountChange(userId, newTimeBlock, 2);
 
   // Publish realtime event (fire and forget)
   if (newTimeBlock) {
@@ -329,6 +332,21 @@ async function syncTaskEstimate(userId: string, block: { taskId: string | null; 
   if (!block.taskId) return;
   const task = await syncEstimateFromBlocks(userId, { taskId: block.taskId, subtaskId: block.subtaskId });
   if (task) publishEvent(userId, 'task:updated', { taskId: task.id, scheduledDate: task.scheduledDate });
+}
+
+/**
+ * After a block is added or removed: with more than one instance on the
+ * calendar (or one left after a delete), the planned time is their total.
+ * A task's first block leaves its planned time (and subtask total) alone.
+ */
+async function syncAfterBlockCountChange(
+  userId: string,
+  block: { taskId: string | null; subtaskId?: string | null },
+  minBlocks: number
+) {
+  if (!block.taskId) return;
+  const scope = { taskId: block.taskId, subtaskId: block.subtaskId ?? null };
+  if ((await countBlocks(userId, scope)) >= minBlocks) await syncTaskEstimate(userId, scope);
 }
 
 /** PATCH /time-blocks/:id - Update a time block */
@@ -483,6 +501,8 @@ timeBlocksRouter.delete('/:id', requireScopes('time-blocks:write'), zValidator('
   if (!existing) throw new NotFoundError('Time block', id);
 
   await db.delete(timeBlocks).where(and(eq(timeBlocks.id, id), eq(timeBlocks.userId, userId)));
+  // Removing one of several instances re-plans to what's left.
+  await syncAfterBlockCountChange(userId, existing, 1);
 
   // Publish realtime event (fire and forget)
   publishEvent(userId, 'timeblock:deleted', {

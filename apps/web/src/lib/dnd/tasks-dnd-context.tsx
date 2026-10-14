@@ -29,6 +29,7 @@ import {
 } from "@/hooks/useIdeas";
 import { TaskCard } from "@/components/kanban/task-card";
 import type { SubtaskDragData } from "@/components/kanban/task-card-content";
+import { taskDropMins } from "@/lib/task-drop-mins";
 import { taskPriorityCollision } from "./collision-detection";
 
 interface TasksDndContextValue {
@@ -302,7 +303,7 @@ export function TasksDndProvider({ children }: TasksDndProviderProps) {
           startTime,
           endTime: addMinutes(
             startTime,
-            task.estimatedMins ?? DEFAULT_DROP_MINS
+            taskDropMins(queryClient, task, DEFAULT_DROP_MINS)
           ),
         });
         return;
