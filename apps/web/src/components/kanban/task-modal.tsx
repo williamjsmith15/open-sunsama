@@ -43,6 +43,7 @@ import {
 } from "@/hooks/useTasks";
 import { useHoveredTask, useIsMobile } from "@/hooks";
 import { useCreateSubtask, useUpdateSubtask } from "@/hooks/useSubtasks";
+import { useDefaultTaskMins } from "@/hooks/useDefaultTaskMins";
 import { useAddTaskPosition, usePlaceNewTask } from "@/hooks/useAddTaskPosition";
 import { BottomSheetContent } from "@/components/ui/bottom-sheet";
 import { useTimeBlocks, useUpdateTimeBlock } from "@/hooks/useTimeBlocks";
@@ -80,6 +81,10 @@ import { PriorityMenu } from "./priority-menu";
 import { ProjectDot, ProjectMenu } from "@/components/projects/project-picker";
 import { useProjectMap } from "@/hooks/useProjects";
 import { TagMenu, TagPills } from "@/components/tags/tag-picker";
+import { DueDatePicker } from "@/components/tasks/due-date-picker";
+import { dueLabel, dueState } from "@/components/tasks/due-badge";
+import { DependencySection } from "@/components/tasks/dependency-section";
+import { openTask } from "@/lib/open-task";
 import { PriorityIcon, PRIORITY_META } from "@/components/ui/priority-badge";
 import { WithShortcut } from "@/components/ui/with-shortcut";
 import { useCreateTaskSeries } from "@/hooks/useTaskSeries";
@@ -140,22 +145,25 @@ export function TaskModal({
   const [draftDate, setDraftDate] = React.useState<string | null>(null);
   const [draftProjectId, setDraftProjectId] = React.useState<string | null>(null);
   const [draftTagIds, setDraftTagIds] = React.useState<string[]>([]);
+  const [draftDueDate, setDraftDueDate] = React.useState<string | null>(null);
   const [draftSubtasks, setDraftSubtasks] = React.useState<DraftSubtask[]>([]);
   const { addPosition, setAddPosition } = useAddTaskPosition();
   const placeNewTask = usePlaceNewTask(draftDate);
   const createSubtask = useCreateSubtask();
   const updateSubtask = useUpdateSubtask();
   const [isCreating, setIsCreating] = React.useState(false);
+  const defaultMins = useDefaultTaskMins();
 
   React.useEffect(() => {
     if (!open || !isCompose) return;
     setTitle("");
     setDescription("");
-    setPlannedMins(null);
+    setPlannedMins(defaultMins);
     setDraftPriority("P2");
     setDraftDate(createDefaults?.scheduledDate ?? null);
     setDraftProjectId(createDefaults?.projectId ?? null);
     setDraftTagIds([]);
+    setDraftDueDate(null);
     setDraftSubtasks([]);
   }, [open, isCompose]);
 
@@ -242,6 +250,12 @@ export function TaskModal({
     if (isCompose) setDraftProjectId(projectId);
     if (!task) return;
     await updateTask.mutateAsync({ id: task.id, data: { projectId } });
+  };
+
+  const handleDueDateChange = async (dueDate: string | null) => {
+    if (isCompose) setDraftDueDate(dueDate);
+    if (!task) return;
+    await updateTask.mutateAsync({ id: task.id, data: { dueDate } });
   };
 
   const handleTagsChange = async (tagIds: string[]) => {
@@ -504,9 +518,10 @@ export function TaskModal({
       notes: task.notes ?? undefined,
       priority: task.priority,
       scheduledDate: task.scheduledDate ?? undefined,
-      estimatedMins: task.estimatedMins ?? undefined,
+      estimatedMins: task.estimatedMins,
       projectId: task.projectId ?? undefined,
       tagIds: task.tagIds,
+      dueDate: task.dueDate ?? undefined,
     });
     toast({ title: "Task duplicated" });
   };
@@ -526,10 +541,11 @@ export function TaskModal({
         title: trimmed,
         notes: description || undefined,
         scheduledDate: draftDate ?? undefined,
-        estimatedMins: plannedMins ?? undefined,
+        estimatedMins: plannedMins,
         priority: draftPriority,
         projectId: draftProjectId ?? undefined,
         tagIds: draftTagIds.length ? draftTagIds : undefined,
+        dueDate: draftDueDate ?? undefined,
       });
       // In order, so the checklist keeps the order it was typed in.
       for (const [position, st] of draftSubtasks.entries()) {
@@ -565,6 +581,7 @@ export function TaskModal({
           scheduledDate: draftDate,
           projectId: draftProjectId,
           tagIds: draftTagIds,
+          dueDate: draftDueDate,
           estimatedMins: plannedMins,
           actualMins: null,
           completedAt: null,
@@ -642,6 +659,27 @@ export function TaskModal({
             </DatePickerPopover>
           </span>
         </WithShortcut>
+        <DueDatePicker
+          value={renderTask.dueDate ?? null}
+          onChange={(d) => void handleDueDateChange(d)}
+          className={fieldButton}
+        >
+          <span className={fieldLabel}>Due</span>
+          <span
+            className={cn(
+              fieldValue,
+              renderTask.dueDate &&
+                !renderTask.completedAt &&
+                {
+                  overdue: "text-red-500",
+                  soon: "text-amber-600 dark:text-amber-400",
+                  later: "text-foreground",
+                }[dueState(renderTask.dueDate)]
+            )}
+          >
+            {renderTask.dueDate ? dueLabel(renderTask.dueDate).replace(/^Due /, "") : "None"}
+          </span>
+        </DueDatePicker>
         <Popover open={priorityOpen} onOpenChange={setPriorityOpen}>
           <PopoverTrigger asChild>
             <WithShortcut label="Priority" shortcut="editPriority" side="bottom">
@@ -995,6 +1033,17 @@ export function TaskModal({
           </div>
         )}
         {subtasks}
+        {!isCompose && (
+          <div className={isMobile ? "px-5 pt-4" : "pl-[34px] pr-8 pt-4"}>
+            <DependencySection
+              task={renderTask}
+              onOpenTask={(id) => {
+                onOpenChange(false);
+                openTask(id);
+              }}
+            />
+          </div>
+        )}
         {notes}
       </div>
     </>

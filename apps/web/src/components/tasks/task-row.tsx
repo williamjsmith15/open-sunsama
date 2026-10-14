@@ -14,6 +14,7 @@ import { EDIT_ESTIMATE_EVENT } from "@/components/task-shortcuts-handler";
 import { WithShortcut } from "@/components/ui/with-shortcut";
 import { ProjectChip } from "@/components/projects/project-picker";
 import { TagPills } from "@/components/tags/tag-picker";
+import { BlockedBadge, DueBadge } from "@/components/tasks/due-badge";
 import { useProjectMap } from "@/hooks/useProjects";
 
 export interface TaskRowProps {
@@ -146,6 +147,8 @@ export function TaskRow({
           {task.title}
         </button>
 
+        {!isCompleted && <BlockedBadge blockedBy={task.blockedBy} />}
+        <DueBadge dueDate={task.dueDate} completed={isCompleted} />
         <TagPills tagIds={task.tagIds} className="shrink-0" />
         {project && !hideProject && <ProjectChip project={project} className="shrink-0" />}
 

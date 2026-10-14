@@ -60,7 +60,7 @@ export function useCommandContext({ onAddTask, closeSearch }: UseCommandContextO
         title: task.title,
         priority: task.priority,
         scheduledDate: task.scheduledDate ?? undefined,
-        estimatedMins: task.estimatedMins ?? undefined,
+        estimatedMins: task.estimatedMins,
         notes: task.notes ?? undefined,
       });
       toast({ title: "Task duplicated" });

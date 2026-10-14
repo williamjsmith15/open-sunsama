@@ -22,6 +22,8 @@ import { PriorityMenu } from "./priority-menu";
 import { TaskSourceChips } from "./task-source-chip";
 import { ProjectChip } from "@/components/projects/project-picker";
 import { TagPills } from "@/components/tags/tag-picker";
+import { BlockedBadge, DueBadge } from "@/components/tasks/due-badge";
+import { isBlocked } from "@/lib/project-schedule";
 import { useProjectMap } from "@/hooks/useProjects";
 
 interface TaskCardContentProps {
@@ -212,7 +214,9 @@ export function TaskCardContent({
     task.priority !== "P2" ||
     !!tag ||
     !!project ||
-    !!task.tagIds?.length;
+    !!task.tagIds?.length ||
+    (!!task.dueDate && !isCompleted) ||
+    (isBlocked(task) && !isCompleted);
 
   return (
     <div
@@ -269,13 +273,14 @@ export function TaskCardContent({
         {timeChip}
       </div>
 
-      {/* When it starts, how urgent it is, and its channel. */}
+      {/* When it starts, how urgent it is, and its channel. contain:inline-size
+          keeps the badges from widening the card past its column. */}
       {showMeta && (
-        <div className="flex h-4 items-center gap-2 pl-6">
+        <div className="flex h-4 min-w-0 items-center gap-2 overflow-hidden pl-6 [contain:inline-size]">
           {formattedTime && (
             <span
               className={cn(
-                "text-[11px] font-medium tabular-nums",
+                "shrink-0 whitespace-nowrap text-[11px] font-medium tabular-nums",
                 timeIsProjected
                   ? "text-muted-foreground/60"
                   : "text-muted-foreground"
@@ -290,6 +295,8 @@ export function TaskCardContent({
             </span>
           )}
           {priorityChip}
+          {!isCompleted && <BlockedBadge blockedBy={task.blockedBy} />}
+          <DueBadge dueDate={task.dueDate} completed={isCompleted} />
           <TagPills tagIds={task.tagIds} />
           {project && <ProjectChip project={project} className="ml-auto" />}
           {tag && !project && (

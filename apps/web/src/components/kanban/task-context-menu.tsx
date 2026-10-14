@@ -232,7 +232,7 @@ export function TaskContextMenu({
       notes: task.notes ?? undefined,
       priority: task.priority,
       scheduledDate: task.scheduledDate ?? undefined,
-      estimatedMins: task.estimatedMins ?? undefined,
+      estimatedMins: task.estimatedMins,
       projectId: task.projectId ?? undefined,
       tagIds: task.tagIds,
     });

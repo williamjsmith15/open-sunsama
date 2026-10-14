@@ -352,7 +352,7 @@ export function TaskShortcutsHandler({
             title: hoveredTask.title,
             priority: hoveredTask.priority,
             scheduledDate: hoveredTask.scheduledDate ?? undefined,
-            estimatedMins: hoveredTask.estimatedMins ?? undefined,
+            estimatedMins: hoveredTask.estimatedMins,
             notes: hoveredTask.notes ?? undefined,
           });
           toast({

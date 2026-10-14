@@ -118,6 +118,7 @@ export interface UserPreferences {
   workEndHour?: number;
   homeTab?: "board" | "tasks" | "calendar";
   addTaskPosition?: "top" | "bottom";
+  defaultTaskMins?: number | null;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {

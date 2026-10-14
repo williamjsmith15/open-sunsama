@@ -46,6 +46,24 @@ import {
   PROJECT_STATUS_LABELS,
   ProjectDialog,
 } from "@/components/projects/project-dialog";
+import { ProjectGraph } from "@/components/projects/project-graph";
+import { openTask } from "@/lib/open-task";
+
+type ProjectView = "list" | "graph";
+const PROJECT_VIEW_KEY = "open-sunsama-projects-view";
+const PROJECT_VIEWS: Array<{ id: ProjectView; label: string }> = [
+  { id: "list", label: "List" },
+  { id: "graph", label: "Graph" },
+];
+
+function readView(): ProjectView {
+  try {
+    const v = localStorage.getItem(PROJECT_VIEW_KEY);
+    return v === "graph" ? v : "list";
+  } catch {
+    return "list";
+  }
+}
 
 const ACTIVE_PROJECT_KEY = "open-sunsama-projects-active";
 
@@ -184,6 +202,9 @@ function ProjectHeader({
   const done = tasks.filter((t) => t.completedAt).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
   const today = format(new Date(), "yyyy-MM-dd");
+  const overdueCount = tasks.filter(
+    (t) => !t.completedAt && t.dueDate && t.dueDate < today
+  ).length;
   const overdueTarget =
     project.targetDate && project.targetDate < today && project.status === "active";
 
@@ -257,6 +278,11 @@ function ProjectHeader({
             {done}/{total} done
           </span>
         </span>
+        {overdueCount > 0 && (
+          <span className="text-red-500">
+            {overdueCount} overdue
+          </span>
+        )}
         {project.targetDate && (
           <span className={cn(overdueTarget && "text-red-500")}>
             Target {format(parseISO(project.targetDate), "EEE, MMM d")}
@@ -311,6 +337,15 @@ export default function ProjectsPage() {
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const completeTask = useCompleteTask();
   const [tagFilter, setTagFilter] = React.useState<TagFilterValue>(null);
+  const [view, setViewState] = React.useState<ProjectView>(readView);
+  const setView = (v: ProjectView) => {
+    setViewState(v);
+    try {
+      localStorage.setItem(PROJECT_VIEW_KEY, v);
+    } catch {
+      // view just isn't remembered
+    }
+  };
 
   React.useEffect(() => {
     if (projectParam) setSelected(projectParam);
@@ -416,7 +451,12 @@ export default function ProjectsPage() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-4 py-5 lg:px-6">
+          <div
+            className={cn(
+              "mx-auto w-full px-4 py-5 lg:px-6",
+              project && view !== "list" ? "max-w-none" : "max-w-3xl"
+            )}
+          >
             {project ? (
               <ProjectHeader project={project} tasks={tasks} onEdit={() => setEditOpen(true)} />
             ) : selected === NO_PROJECT ? (
@@ -442,6 +482,37 @@ export default function ProjectsPage() {
               </div>
             )}
 
+            {project && (
+              <div className="mt-4 flex items-center gap-0.5 self-start rounded-md bg-muted/50 p-0.5 w-fit">
+                {PROJECT_VIEWS.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    aria-pressed={view === v.id}
+                    onClick={() => setView(v.id)}
+                    className={cn(
+                      "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                      view === v.id
+                        ? "bg-surface text-foreground shadow-card"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {project && view === "graph" ? (
+              <div className="mt-4">
+                <ProjectGraph
+                  project={project}
+                  tasks={tasks.filter((t) => matchesTagFilter(t, tagFilter))}
+                  onSelect={setSelectedTask}
+                  onOpenExternal={openTask}
+                />
+              </div>
+            ) : (
             <div className="mt-5">
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
@@ -473,6 +544,7 @@ export default function ProjectsPage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </main>

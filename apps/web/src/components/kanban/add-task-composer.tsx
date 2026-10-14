@@ -7,6 +7,7 @@ import { cn, formatDuration } from "@/lib/utils";
 import { useCreateTask } from "@/hooks/useTasks";
 import { useCreateSubtask } from "@/hooks/useSubtaskMutations";
 import { useAddTaskPosition, usePlaceNewTask } from "@/hooks/useAddTaskPosition";
+import { useDefaultTaskMins } from "@/hooks/useDefaultTaskMins";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DurationPicker } from "@/components/ui/duration-picker";
 import { WithShortcut } from "@/components/ui/with-shortcut";
@@ -81,7 +82,9 @@ export function AddTaskComposer({
 }: AddTaskComposerProps) {
   const [title, setTitle] = React.useState(initialTitle);
   const [date, setDate] = React.useState<string | null>(scheduledDate);
-  const [planned, setPlanned] = React.useState<number | null>(null);
+  const defaultMins = useDefaultTaskMins();
+  // Ideas keep their own planned time; only tasks start with the default.
+  const [planned, setPlanned] = React.useState<number | null>(onSubmit ? null : defaultMins);
   const [priority, setPriority] = React.useState<TaskPriority>("P2");
   const [plannedOpen, setPlannedOpen] = React.useState(false);
   const [priorityOpen, setPriorityOpen] = React.useState(false);
@@ -129,7 +132,7 @@ export function AddTaskComposer({
       .mutateAsync({
         title: trimmed,
         scheduledDate: date ?? undefined,
-        estimatedMins: planned ?? undefined,
+        estimatedMins: planned,
         priority,
       })
       .then(async (task) => {

@@ -131,7 +131,7 @@ export default function FocusPage() {
       notes: task.notes ?? undefined,
       priority: task.priority,
       scheduledDate: task.scheduledDate ?? undefined,
-      estimatedMins: task.estimatedMins ?? undefined,
+      estimatedMins: task.estimatedMins,
     });
     toast({ title: "Task duplicated" });
   }, [task, createTask]);

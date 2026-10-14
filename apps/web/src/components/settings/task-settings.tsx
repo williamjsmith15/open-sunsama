@@ -15,6 +15,7 @@ import {
 } from "@/components/ui";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useDefaultTaskMins } from "@/hooks/useDefaultTaskMins";
 import { DEFAULT_PREFERENCES } from "@/lib/themes";
 import {
   useNotificationPreferences,
@@ -45,6 +46,18 @@ const HOME_TAB_OPTIONS: { value: HomeTabPreference; label: string }[] = [
   { value: "calendar", label: "Calendar" },
 ];
 
+/** Choices for a new task's planned time; "none" turns the default off. */
+const DEFAULT_MINS_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "15", label: "15 min" },
+  { value: "30", label: "30 min" },
+  { value: "45", label: "45 min" },
+  { value: "60", label: "1 hour" },
+  { value: "90", label: "1.5 hours" },
+  { value: "120", label: "2 hours" },
+  { value: "180", label: "3 hours" },
+] as const;
+
 /**
  * Task settings component for managing task behavior preferences
  */
@@ -53,6 +66,28 @@ export function TaskSettings() {
   const { data: preferences, isLoading, error } = useNotificationPreferences();
   const updatePreferences = useUpdateNotificationPreferences();
   const [isSavingHomeTab, setIsSavingHomeTab] = React.useState(false);
+  const [isSavingDefaultMins, setIsSavingDefaultMins] = React.useState(false);
+  const defaultMins = useDefaultTaskMins();
+
+  const handleDefaultMinsChange = (value: string) => {
+    const mins = value === "none" ? null : Number(value);
+    setIsSavingDefaultMins(true);
+    void updateUser({
+      preferences: {
+        ...DEFAULT_PREFERENCES,
+        ...(user?.preferences ?? {}),
+        defaultTaskMins: mins,
+      },
+    })
+      .then(() => {
+        const label = DEFAULT_MINS_OPTIONS.find((o) => o.value === value)?.label ?? value;
+        toast({
+          title: "Default planned time updated",
+          description: mins ? `New tasks start with ${label}.` : "New tasks start with no planned time.",
+        });
+      })
+      .finally(() => setIsSavingDefaultMins(false));
+  };
 
   const handleRolloverDestinationChange = async (value: string) => {
     try {
@@ -146,6 +181,42 @@ export function TaskSettings() {
               </SelectTrigger>
               <SelectContent>
                 {HOME_TAB_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>New Tasks</CardTitle>
+          <CardDescription>
+            What a task starts with when you add it
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium">Default planned time</p>
+              <p className="text-xs text-muted-foreground">
+                Used when you don't pick a time while adding the task. You can
+                still change it on each task.
+              </p>
+            </div>
+            <Select
+              value={defaultMins === null ? "none" : String(defaultMins)}
+              onValueChange={handleDefaultMinsChange}
+              disabled={isSavingDefaultMins}
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DEFAULT_MINS_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>

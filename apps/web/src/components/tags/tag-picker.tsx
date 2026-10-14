@@ -22,7 +22,7 @@ export function TagPill({
   return (
     <span
       className={cn(
-        "inline-flex max-w-[8rem] items-center rounded px-1 text-[11px] font-medium leading-4",
+        "inline-flex min-w-0 max-w-[8rem] items-center rounded px-1 text-[11px] font-medium leading-4",
         className
       )}
       style={{ color: tag.color, backgroundColor: `${tag.color}1F` }}
@@ -52,13 +52,13 @@ export function TagPills({
   const shown = list.slice(0, max);
   const rest = list.slice(max);
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-1", className)}>
+    <span className={cn("inline-flex min-w-0 items-center gap-1 overflow-hidden", className)}>
       {shown.map((tag) => (
         <TagPill key={tag.name} tag={tag} />
       ))}
       {rest.length > 0 && (
         <span
-          className="text-[11px] tabular-nums text-muted-foreground"
+          className="shrink-0 text-[11px] tabular-nums text-muted-foreground"
           title={rest.map((t) => `#${t.name}`).join(" ")}
         >
           +{rest.length}

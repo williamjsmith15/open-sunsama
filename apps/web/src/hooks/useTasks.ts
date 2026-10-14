@@ -16,6 +16,7 @@ import { getApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
+import { useDefaultTaskMins } from "@/hooks/useDefaultTaskMins";
 import { trackGoal } from "@/lib/analytics";
 import { taskKeys, timeBlockKeys } from "@/lib/query-keys";
 
@@ -223,6 +224,7 @@ export function useTask(id: string) {
 export function useCreateTask() {
   const queryClient = useQueryClient();
   const { record } = useUndoRedo();
+  const defaultMins = useDefaultTaskMins();
 
   return useMutation({
     mutationFn: async (data: CreateTaskInput): Promise<Task> => {
@@ -245,7 +247,9 @@ export function useCreateTask() {
         title: data.title,
         notes: data.notes ?? null,
         scheduledDate: data.scheduledDate ?? null,
-        estimatedMins: data.estimatedMins ?? null,
+        dueDate: data.dueDate ?? null,
+        estimatedMins:
+          data.estimatedMins === undefined ? defaultMins : data.estimatedMins,
         actualMins: 0,
         priority: data.priority ?? "P2",
         position: Number.MAX_SAFE_INTEGER,
@@ -666,10 +670,11 @@ export function useDeleteTask() {
                 title: task.title,
                 notes: task.notes ?? undefined,
                 scheduledDate: task.scheduledDate ?? undefined,
-                estimatedMins: task.estimatedMins ?? undefined,
+                estimatedMins: task.estimatedMins,
                 priority: task.priority,
                 projectId: task.projectId ?? undefined,
                 tagIds: task.tagIds,
+                dueDate: task.dueDate ?? undefined,
               });
               holder.id = recreated.id;
               invalidateTaskCaches(queryClient);

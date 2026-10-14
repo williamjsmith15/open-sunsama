@@ -34,6 +34,8 @@ import {
   prefetchTaskModal,
 } from "@/components/kanban/task-modal.lazy";
 import { AppUpdateBanner } from "@/components/app-update-banner.lazy";
+import { OPEN_TASK_EVENT } from "@/lib/open-task";
+import { getApi } from "@/lib/api";
 import { prefetchRichTextEditor } from "@/components/ui/rich-text-editor.lazy";
 
 /**
@@ -112,6 +114,19 @@ function AppLayoutInner() {
   const { isSearchOpen, closeSearch } = useSearch();
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = React.useState(false);
+
+  // `openTask(id)` from anywhere opens that task here.
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      void getApi()
+        .tasks.get(id)
+        .then((task) => setSelectedTask(task))
+        .catch(() => undefined);
+    };
+    window.addEventListener(OPEN_TASK_EVENT, handler);
+    return () => window.removeEventListener(OPEN_TASK_EVENT, handler);
+  }, []);
 
   // Warm the Tiptap chunk during browser idle time. The first time the user
   // hits Cmd+K → Add Task, or opens a task modal, the editor module is
